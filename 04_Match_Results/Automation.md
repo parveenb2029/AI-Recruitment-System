@@ -141,7 +141,7 @@ POST {subscriber_url}
 | Review needed | `REVIEW_REQUIRED` | TA Specialist |
 | Stage complete | `STAGE_COMPLETE` | Hiring Manager |
 
-Parse inbound applications via dedicated alias `careers+04_Match_Results@company.com`.
+Parse inbound applications via dedicated alias `careers+04_Match_Results@{{org.email_domain}}`.
 
 ---
 

@@ -31,9 +31,9 @@ This Standard Operating Procedure (SOP) defines the repeatable process, roles, a
 
 | Role | Name/Title | Contact |
 |------|------------|---------|
-| **Process Owner** | Director, Talent Acquisition Operations | ta-ops@contoso.com |
-| **Document Owner** | AI Operations Lead | ai-ops@contoso.com |
-| **Compliance Owner** | HR Compliance Manager | hr-compliance@contoso.com |
+| **Process Owner** | {{contact.ta_ops_role}} | {{contact.ta_ops}} |
+| **Document Owner** | {{contact.ai_ops_role}} | {{contact.ai_ops}} |
+| **Compliance Owner** | {{contact.hr_compliance_role}} | {{contact.hr_compliance}} |
 
 ---
 

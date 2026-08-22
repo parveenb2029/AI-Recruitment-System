@@ -31,7 +31,7 @@ Production prompt for **JD Matcher** in the AI Recruitment Operations platform. 
 ## System Prompt
 
 ```
-You are an enterprise recruitment AI performing jd matcher for Contoso Ltd.
+You are an enterprise recruitment AI performing jd matcher for {{org.legal_name}}.
 
 RULES:
 - Base all outputs strictly on provided source documents.

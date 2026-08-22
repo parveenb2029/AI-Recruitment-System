@@ -195,10 +195,10 @@ All prompts are versioned, owned, and governed per `10_SOPs/Prompt_Governance_SO
 
 ## Contact
 
-**AI Operations Lead:** ai-ops@contoso.com  
-**Talent Acquisition Operations:** ta-ops@contoso.com  
-**HR Compliance:** hr-compliance@contoso.com  
+**{{contact.ai_ops_role}}:** {{contact.ai_ops}}  
+**{{contact.ta_ops_role}}:** {{contact.ta_ops}}  
+**{{contact.hr_compliance_role}}:** {{contact.hr_compliance}}  
 
 ---
 
-*© 2026 Contoso Ltd. Internal Use Only.*
+*{{org.copyright}}*

@@ -1,0 +1,140 @@
+{
+  "status": "SUCCESS",
+  "workflow_id": "WF-04",
+  "prompt_version": "1.0.0",
+  "model_id": "gpt-4o-2026-05-01",
+  "requisition_id": "REQ-2026-0142",
+  "candidate_id": "CAN-88421",
+  "workflow_run_id": "RUN-7b1d40e2",
+  "processed_at": "2026-08-03T09:24:11Z",
+  "confidence_aggregate": 0.9,
+  "human_review_required": false,
+  "review_reasons": [],
+  "flags": [],
+  "artifact_path": "04_Match_Results/REQ-2026-0142_CAN-88421_output_20260803.json",
+  "results": {
+    "overall_score": 0.82,
+    "recommendation": "STRONG_MATCH",
+    "components": [
+      {
+        "component_id": "must_have_coverage",
+        "label": "Must-have skill coverage",
+        "raw_score": 0.86,
+        "weight": 0.5,
+        "weighted_score": 0.43,
+        "confidence": 0.93,
+        "rationale": "Six of seven must-have skills evidenced in the current role; Terraform is absent.",
+        "evidence": [
+          {
+            "field": "python",
+            "snippet": "Designed REST microservices in Python",
+            "source_location": "page 1",
+            "match_score": 0.99
+          }
+        ]
+      },
+      {
+        "component_id": "experience_band",
+        "label": "Years in band",
+        "raw_score": 0.8,
+        "weight": 0.3,
+        "weighted_score": 0.24,
+        "confidence": 0.88,
+        "rationale": "4.5 years against a 4-7 year band; sits at the lower end.",
+        "evidence": [
+          {
+            "field": "tenure",
+            "snippet": "Software engineer with 4.5 years of experience",
+            "source_location": "page 1",
+            "match_score": 0.98
+          }
+        ]
+      },
+      {
+        "component_id": "domain_match",
+        "label": "Domain relevance",
+        "raw_score": 0.75,
+        "weight": 0.2,
+        "weighted_score": 0.15,
+        "confidence": 0.81,
+        "rationale": "Cloud-native backend work matches; no fintech domain exposure.",
+        "evidence": [
+          {
+            "field": "domain",
+            "snippet": "backend services and cloud-native applications on Azure",
+            "source_location": "page 1",
+            "match_score": 0.96
+          }
+        ]
+      }
+    ],
+    "weighting": {
+      "scheme_id": "swe-ic-default",
+      "scheme_version": "1.0.0",
+      "weights": {
+        "must_have_coverage": 0.5,
+        "experience_band": 0.3,
+        "domain_match": 0.2
+      }
+    },
+    "must_have_requirements": [
+      {
+        "requirement_id": "MH-01",
+        "requirement": "Python",
+        "status": "MET",
+        "evidence": [
+          {
+            "field": "python",
+            "snippet": "Designed REST microservices in Python",
+            "match_score": 0.99
+          }
+        ]
+      },
+      {
+        "requirement_id": "MH-02",
+        "requirement": "Kubernetes",
+        "status": "MET",
+        "evidence": [
+          {
+            "field": "k8s",
+            "snippet": "Deployed services on Azure AKS with Docker/Kubernetes",
+            "match_score": 0.97
+          }
+        ]
+      },
+      {
+        "requirement_id": "MH-03",
+        "requirement": "Terraform",
+        "status": "NOT_MET",
+        "evidence": []
+      },
+      {
+        "requirement_id": "MH-04",
+        "requirement": "On-call experience",
+        "status": "UNKNOWN",
+        "evidence": []
+      }
+    ],
+    "gaps": [
+      {
+        "requirement": "Terraform",
+        "severity": "SIGNIFICANT",
+        "note": "No IaC tooling evidenced."
+      },
+      {
+        "requirement": "On-call experience",
+        "severity": "MINOR",
+        "note": "Not stated either way - ask at screen."
+      }
+    ],
+    "auto_archive_eligible": false,
+    "excluded_signals": [
+      "name",
+      "gender",
+      "age",
+      "nationality",
+      "university_prestige",
+      "address"
+    ]
+  }
+}

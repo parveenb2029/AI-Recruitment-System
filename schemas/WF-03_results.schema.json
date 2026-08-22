@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WF-03 Resume Data Extraction — Results Payload",
+  "description": "The payload that WF-03 produces. Replaces the empty \"results\": {} placeholder that stood in all eight Prompt.md files. 'profile' is structurally compatible with resume.schema.json, so samples/Rahul_Sharma.json slots in directly.",
+  "type": "object",
+  "required": ["profile", "field_confidence"],
+  "additionalProperties": false,
+  "properties": {
+    "profile": {
+      "$ref": "resume.schema.json",
+      "description": "The extracted candidate profile. Reuses the existing entity schema rather than defining a parallel one."
+    },
+    "field_confidence": {
+      "type": "object",
+      "description": "Maps a JSON Pointer into 'profile' to that field's confidence. Keyed by pointer rather than by name so the review console can flag any field below 0.60 (Validation.md section 6) without knowing the profile shape.",
+      "propertyNames": { "pattern": "^(/[^/]*)+$" },
+      "additionalProperties": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "minProperties": 1
+    },
+    "low_confidence_fields": {
+      "type": "array",
+      "description": "Convenience index of pointers whose confidence is below the review threshold. Derived, not authoritative - field_confidence is the source of truth.",
+      "items": { "type": "string" }
+    },
+    "conflicts": {
+      "type": "array",
+      "description": "Contradictions found in the source. Per the edge-case table, conflicting dates must be listed here and NEVER silently resolved.",
+      "items": {
+        "type": "object",
+        "required": ["pointer", "values"],
+        "properties": {
+          "pointer": { "type": "string" },
+          "values": {
+            "type": "array",
+            "items": { "type": "string" },
+            "minItems": 2
+          },
+          "note": { "type": "string" }
+        }
+      }
+    },
+    "extraction_metadata": {
+      "type": "object",
+      "required": ["ocr_used", "pages_processed"],
+      "properties": {
+        "ocr_used": {
+          "type": "boolean",
+          "description": "True when the text layer fell below the 100-character threshold and OCR fallback ran."
+        },
+        "pages_processed": { "type": "integer", "minimum": 0 },
+        "source_char_count": { "type": "integer", "minimum": 0 },
+        "content_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "Hash of the source document. Idempotency key per Execution_Flow.md section 8."
+        },
+        "locale_detected": {
+          "type": "string",
+          "description": "BCP 47 tag. Per the edge-case table, a non-English resume is processed with a locale tag and reduced confidence rather than rejected."
+        },
+        "truncated": {
+          "type": "boolean",
+          "description": "True when a long CV was summarized. Per the edge-case table: retain the last 10 years in detail, summarize older roles."
+        }
+      }
+    },
+    "excluded_signals": {
+      "type": "array",
+      "description": "Attributes present in the source that were deliberately NOT extracted or used - age, gender, nationality, marital status, photograph. Recorded so the bias audit in Phase 4.2 can verify the exclusion actually happened.",
+      "items": { "type": "string" }
+    }
+  }
+}

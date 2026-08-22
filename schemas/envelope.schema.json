@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AI Workflow Output Envelope",
+  "description": "Shared response envelope for every AI workflow. Workflow-specific output schemas extend this and narrow the 'results' property to their own results schema. Defined once here rather than repeated per workflow.",
+  "type": "object",
+  "required": [
+    "status",
+    "workflow_id",
+    "prompt_version",
+    "model_id",
+    "processed_at",
+    "confidence_aggregate",
+    "human_review_required"
+  ],
+  "properties": {
+    "status": {
+      "description": "PARTIAL is first-class: some fields extracted, others failed. Never collapse PARTIAL into SUCCESS or FAILED - that is how silent data loss happens.",
+      "enum": ["SUCCESS", "PARTIAL", "FAILED"]
+    },
+    "workflow_id": {
+      "type": "string",
+      "pattern": "^WF-[0-9]{2}$"
+    },
+    "prompt_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Required for audit under BR-05. Must match the deployed prompt version (VR-06)."
+    },
+    "model_id": {
+      "type": "string",
+      "description": "Exact model identifier including snapshot date. Required for audit under BR-05."
+    },
+    "requisition_id": { "type": "string" },
+    "candidate_id": { "type": "string" },
+    "workflow_run_id": { "type": "string" },
+    "processed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "confidence_aggregate": {
+      "$ref": "#/$defs/confidence",
+      "description": "PROVISIONAL. Currently model-self-reported and uncalibrated. Thresholds in Validation.md section 6 are unvalidated until Phase 4.3 calibration against the golden set. Do not treat 0.85 as meaningful yet."
+    },
+    "human_review_required": { "type": "boolean" },
+    "review_reasons": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "flags": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "error_code": {
+      "type": "string",
+      "description": "Set when status is FAILED. See Error_Handling.md."
+    },
+    "evidence": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/evidence_ref" }
+    },
+    "artifact_path": { "type": "string" },
+    "results": {
+      "description": "Narrowed by each workflow's output schema. Never leave this as a bare object - that was the defect this schema set exists to fix.",
+      "type": "object"
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "FAILED" } }, "required": ["status"] },
+      "then": { "required": ["error_code", "review_reasons"] }
+    },
+    {
+      "if": { "properties": { "status": { "const": "PARTIAL" } }, "required": ["status"] },
+      "then": {
+        "required": ["review_reasons"],
+        "properties": { "human_review_required": { "const": true } }
+      }
+    }
+  ],
+  "$defs": {
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "json_pointer": {
+      "type": "string",
+      "pattern": "^(/[^/]*)*$",
+      "description": "RFC 6901 JSON Pointer into the results object, e.g. /profile/experience/0/company. Used so the review console can locate any field generically instead of hardcoding field names."
+    },
+    "evidence_ref": {
+      "description": "A verbatim source snippet supporting a conclusion. VR-03 requires match_score >= 0.8 when fuzzy-matched back against the source document; below that, raise POTENTIAL_HALLUCINATION. This is the primary defense against fabricated extractions.",
+      "type": "object",
+      "required": ["field", "snippet"],
+      "properties": {
+        "field": {
+          "type": "string",
+          "description": "Human-readable field name, or a JSON Pointer into results."
+        },
+        "pointer": { "$ref": "#/$defs/json_pointer" },
+        "snippet": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Verbatim from source. Max 25 words per the system prompt."
+        },
+        "source_location": {
+          "type": "string",
+          "description": "Human-readable locator, e.g. 'page 1'."
+        },
+        "char_start": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Offset into extracted text. Required for click-to-highlight in the review console."
+        },
+        "char_end": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "match_score": {
+          "$ref": "#/$defs/confidence",
+          "description": "Fuzzy-match score of snippet against source text, computed by the validator - not by the model."
+        }
+      }
+    }
+  }
+}

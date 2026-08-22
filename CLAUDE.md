@@ -70,6 +70,14 @@ Decided once. Do not re-choose these per session.
 5. **No real candidate data in the repo.** Synthetic, or consented and anonymized.
 6. **Nothing is "done" until it has been run.** Execute the acceptance command and
    paste real terminal output.
+7. **No organization-specific value outside `config/`.** No company name, email,
+   domain, retention period, SLA, or scoring weight hardcoded anywhere else.
+   `python tools/check_branding.py` enforces this; run it in CI.
+8. **Two kinds of `{{placeholder}}`.** `{{org.*}}`, `{{contact.*}}`,
+   `{{matching.*}}` and friends are **build-time** and resolved by
+   `tools/render_docs.py`. `{{candidate_id}}`, `{{source_content}}` and friends are
+   **runtime** prompt variables the orchestrator fills per run — the renderer
+   deliberately leaves them alone. Do not conflate them.
 
 ---
 
@@ -79,16 +87,19 @@ The documentation was template-expanded; sibling files are 84–92% identical an
 boilerplate asserts things that are false per workflow. When implementing from a
 spec file, treat these as known-wrong:
 
-- `"results": {}` is empty in all eight `Prompt.md` files (line ~103, and typed as a
-  bare `object` at line ~133). The real output contract does not exist yet.
+- `"results": {}` is still empty in the six unbuilt workflows' `Prompt.md` files
+  (line ~103, typed as a bare `object` at line ~133). **Fixed for WF-03 and WF-04**
+  — those now reference real schemas. The other six are out of v1 scope.
 - Every workflow claims the same `BR-07` SLA of "4 business hours".
 - Every workflow carries identical KPI targets, risk tables, and pain-point tables.
 - `09_Prompt_Library/*.md` all share one Cross-References table, so each entry
   claims to be used as every other prompt.
 - `09_Prompt_Library/resume_parser.md:77` points at `schemas/prompt_metadata.json`;
   the actual file is `schemas/prompt_metadata.schema.json`.
-- Retention is a flat 7 years everywhere, which conflicts with GDPR storage
-  limitation for unsuccessful EU candidates. Must become per-jurisdiction.
+- ~~Retention is a flat 7 years everywhere~~ **Fixed in Phase 2** — retention is
+  now per jurisdiction in `config/organization.yaml` (EU/UK 180d for unsuccessful
+  candidates, US-NY 1095d for EEOC, IN 365d). Defaults are a starting point, not
+  legal advice.
 - `confidence_aggregate >= 0.85` gates the whole architecture and is model
   self-reported. Uncalibrated. Treat the threshold as provisional until Phase 4.3.
 
@@ -139,8 +150,8 @@ artifact. Summary:
 | Phase | Work | Status |
 |-------|------|--------|
 | 0 | Repo foundation | **done** |
-| 1 | WF-03 + WF-04 result schemas | not started |
-| 2 | Config layer, de-branding, adapters | not started |
+| 1 | WF-03 + WF-04 result schemas | **done** |
+| 2 | Config layer, de-branding, adapters | **done** |
 | 3.1–3.6 | Ingest → extract → validate → persist → review console → match | not started |
 | 4.1–4.3 | Golden set, bias harness, confidence calibration | not started |
 | 5.1–5.2 | Auth/RBAC/compliance pack, Docker + quickstart | not started |
@@ -157,3 +168,29 @@ Append here. Newest last.
   inert stubs; docs are hand-maintained from now on. Licence MIT, © Parveen Bajaj.
   Repository initialized on branch `main`; initial commit made. Phase 0 complete.
   Root stubs `generate.py` / `_create_docx_samples.py` can be deleted whenever.
+- **2026-08-22** — Phase 1. Output contracts written for WF-03 and WF-04.
+  `envelope.schema.json` holds the shared response envelope so it is defined once
+  rather than copied per workflow. `results` sets `additionalProperties: false` on
+  both, which makes it structurally impossible to smuggle an undeclared overall
+  score into a match result. Score decomposition locked in: the model judges
+  `must_have_coverage`, `experience_band`, and `domain_match` separately with
+  evidence; `overall_score` and each `weighted_score` are computed in application
+  code from config weights. `UNKNOWN` kept distinct from `NOT_MET` on requirement
+  resolution — absence of evidence is not evidence of absence. Arithmetic rules
+  (BV-04 weight sum, score consistency, BR-04 archive eligibility) cannot be
+  expressed in JSON Schema and are listed in each `Prompt.md` for the validator to
+  enforce in Phase 3.3. `tools/validate_output.py` added; 10/10 deliberately broken
+  documents rejected.
+- **2026-08-22** — Phase 2. `config/organization.yaml` now holds every
+  organization-specific value; `.example.yaml` is committed, the real file is
+  gitignored. All 51 Contoso references across 27 files replaced with placeholders,
+  plus 14 more files carrying `recruitment.example.com` / `@company.com`.
+  `tools/render_docs.py` renders to `build/`; `tools/check_branding.py` fails CI on
+  any hardcoded value. Adapter protocols added for storage / LLM / ATS / auth with
+  local implementations that need no cloud account — the default install requires
+  one API key and nothing else. `OrganizationConfig` validates at load: rubric
+  weights must sum to 1.0 (BV-04), confidence thresholds must descend,
+  `default_scheme` and `default_jurisdiction` must exist. 5/5 invalid configs
+  rejected. Retention is now per jurisdiction, closing the GDPR conflict.
+  Caveat recorded: `confidence.calibrated: false` — the thresholds are still round
+  numbers, not measurements. Phase 4.3 fixes that.

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WF-04 JD-Candidate Matching — Full Output",
+  "description": "The complete WF-04 response: the shared envelope with 'results' narrowed to the WF-04 payload. This is the schema the orchestrator validates against.",
+  "allOf": [
+    { "$ref": "envelope.schema.json" },
+    {
+      "properties": {
+        "workflow_id": { "const": "WF-04" }
+      }
+    },
+    {
+      "if": {
+        "properties": { "status": { "enum": ["SUCCESS", "PARTIAL"] } },
+        "required": ["status"]
+      },
+      "then": {
+        "required": ["results"],
+        "properties": {
+          "results": { "$ref": "WF-04_results.schema.json" }
+        }
+      }
+    }
+  ]
+}

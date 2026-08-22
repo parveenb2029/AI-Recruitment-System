@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://recruitment.contoso.com/schemas/prompt_metadata.json",
+  "$id": "{{org.schema_base_url}}/prompt_metadata.json",
   "title": "Prompt Metadata",
   "type": "object",
   "required": [

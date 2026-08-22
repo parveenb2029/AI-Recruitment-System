@@ -1,0 +1,140 @@
+{
+  "status": "SUCCESS",
+  "workflow_id": "WF-03",
+  "prompt_version": "1.0.0",
+  "model_id": "gpt-4o-2026-05-01",
+  "requisition_id": "REQ-2026-0142",
+  "candidate_id": "CAN-88421",
+  "workflow_run_id": "RUN-3f9c21a8",
+  "processed_at": "2026-08-03T09:18:42Z",
+  "confidence_aggregate": 0.93,
+  "human_review_required": false,
+  "review_reasons": [],
+  "flags": [],
+  "evidence": [
+    {
+      "field": "experience[0].title",
+      "pointer": "/profile/experience/0/title",
+      "snippet": "Senior Software Engineer",
+      "source_location": "page 1",
+      "char_start": 412,
+      "char_end": 436,
+      "match_score": 1.0
+    },
+    {
+      "field": "skills.kubernetes",
+      "pointer": "/profile/skills/4",
+      "snippet": "Deployed services on Azure AKS with Docker/Kubernetes",
+      "source_location": "page 1",
+      "char_start": 520,
+      "char_end": 573,
+      "match_score": 0.97
+    }
+  ],
+  "artifact_path": "03_Extracted_Data/REQ-2026-0142_CAN-88421_output_20260803.json",
+  "results": {
+    "profile": {
+      "candidate_id": "CAN-88421",
+      "personal_info": {
+        "full_name": "Rahul Sharma",
+        "email": "rahul.sharma@email.com",
+        "phone": "+91-98765-43210",
+        "location": "Bangalore, India",
+        "linkedin_url": "https://linkedin.com/in/rahulsharma-dev"
+      },
+      "summary": "Software engineer with 4.5 years of experience building backend services and cloud-native applications on Azure. Strong Python and Kubernetes skills with proven track record of performance optimization.",
+      "experience": [
+        {
+          "company": "Infosys Limited",
+          "title": "Senior Software Engineer",
+          "start_date": "2022-01-15",
+          "end_date": null,
+          "is_current": true,
+          "description": "Designed REST microservices in Python serving 2M daily requests. Deployed services on Azure AKS with Docker/Kubernetes. Reduced API latency 35% via query optimization and Redis caching.",
+          "skills_used": [
+            "Python",
+            "REST",
+            "Docker",
+            "Kubernetes",
+            "Azure",
+            "PostgreSQL",
+            "Redis"
+          ]
+        },
+        {
+          "company": "Tata Consultancy Services",
+          "title": "Software Engineer",
+          "start_date": "2020-06-01",
+          "end_date": "2021-12-31",
+          "is_current": false,
+          "description": "Built CI/CD pipelines using Azure DevOps. Developed SQL reporting modules for enterprise banking clients.",
+          "skills_used": [
+            "Python",
+            "Azure DevOps",
+            "SQL",
+            "Java"
+          ]
+        }
+      ],
+      "education": [
+        {
+          "institution": "Visvesvaraya Technological University",
+          "degree": "B.Tech",
+          "field_of_study": "Computer Science",
+          "graduation_date": "2020-05-15",
+          "gpa": "8.4/10"
+        }
+      ],
+      "skills": [
+        "Python",
+        "Java",
+        "REST APIs",
+        "Docker",
+        "Kubernetes",
+        "Azure",
+        "PostgreSQL",
+        "Git",
+        "CI/CD",
+        "Microservices"
+      ],
+      "certifications": [
+        "AZ-900: Azure Fundamentals",
+        "CKA: Certified Kubernetes Administrator"
+      ],
+      "extraction_metadata": {
+        "confidence_aggregate": 0.94,
+        "prompt_version": "1.0.0",
+        "extracted_at": "2026-08-03T09:18:42Z"
+      }
+    },
+    "field_confidence": {
+      "/personal_info/full_name": 0.99,
+      "/personal_info/email": 0.98,
+      "/personal_info/phone": 0.94,
+      "/experience/0/company": 0.97,
+      "/experience/0/title": 0.96,
+      "/experience/0/start_date": 0.91,
+      "/experience/1/end_date": 0.58,
+      "/education/0/institution": 0.95,
+      "/skills": 0.92
+    },
+    "low_confidence_fields": [
+      "/experience/1/end_date"
+    ],
+    "conflicts": [],
+    "extraction_metadata": {
+      "ocr_used": false,
+      "pages_processed": 2,
+      "source_char_count": 3184,
+      "content_sha256": "9f2b7c1e4a6d8035bb1f0e5c7a92d4638e0fa17c25b93d84e6c07af12b3d59e0",
+      "locale_detected": "en-IN",
+      "truncated": false
+    },
+    "excluded_signals": [
+      "photograph",
+      "date_of_birth",
+      "marital_status",
+      "gender"
+    ]
+  }
+}

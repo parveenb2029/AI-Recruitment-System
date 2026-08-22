@@ -93,60 +93,104 @@ Include field-level confidence scores for all extracted or inferred fields.
 
 ```json
 {
-  "status": "SUCCESS | PARTIAL | FAILED",
+  "status": "SUCCESS",
   "workflow_id": "WF-04",
   "prompt_version": "1.0.0",
+  "model_id": "gpt-4o-2026-05-01",
   "requisition_id": "REQ-2026-0142",
   "candidate_id": "CAN-88421",
   "processed_at": "2026-08-03T10:30:00Z",
-  "confidence_aggregate": 0.92,
-  "results": {},
-  "evidence": [
-    {"field": "example_field", "snippet": "verbatim source text", "source_location": "page 1"}
-  ],
-  "flags": [],
+  "confidence_aggregate": 0.90,
   "human_review_required": false,
-  "review_reasons": []
+  "review_reasons": [],
+  "flags": [],
+  "results": {
+    "overall_score": 0.82,
+    "recommendation": "STRONG_MATCH",
+    "components": [
+      {
+        "component_id": "must_have_coverage",
+        "raw_score": 0.86, "weight": 0.5, "weighted_score": 0.43, "confidence": 0.93,
+        "rationale": "Six of seven must-have skills evidenced; Terraform absent.",
+        "evidence": [{"field": "python", "snippet": "Designed REST microservices in Python"}]
+      },
+      {
+        "component_id": "experience_band",
+        "raw_score": 0.80, "weight": 0.3, "weighted_score": 0.24, "confidence": 0.88,
+        "rationale": "4.5 years against a 4-7 year band; lower end.",
+        "evidence": [{"field": "tenure", "snippet": "4.5 years of experience"}]
+      },
+      {
+        "component_id": "domain_match",
+        "raw_score": 0.75, "weight": 0.2, "weighted_score": 0.15, "confidence": 0.81,
+        "rationale": "Cloud-native backend matches; no fintech exposure.",
+        "evidence": [{"field": "domain", "snippet": "backend services and cloud-native applications"}]
+      }
+    ],
+    "weighting": {
+      "scheme_id": "swe-ic-default",
+      "scheme_version": "1.0.0",
+      "weights": {"must_have_coverage": 0.5, "experience_band": 0.3, "domain_match": 0.2}
+    },
+    "must_have_requirements": [
+      {"requirement_id": "MH-01", "requirement": "Python", "status": "MET"},
+      {"requirement_id": "MH-03", "requirement": "Terraform", "status": "NOT_MET"},
+      {"requirement_id": "MH-04", "requirement": "On-call experience", "status": "UNKNOWN"}
+    ],
+    "gaps": [
+      {"requirement": "Terraform", "severity": "SIGNIFICANT", "note": "No IaC tooling evidenced."}
+    ],
+    "auto_archive_eligible": false,
+    "excluded_signals": ["name", "gender", "age", "nationality", "university_prestige", "address"]
+  }
 }
 ```
 
-**Why:** Downstream automation branches on `status`, `human_review_required`, and `confidence_aggregate`. Partial success is first-class to avoid silent data loss.
+**Why the score is decomposed.** The model judges each component on its own merits and
+cites evidence for each. `overall_score` and every `weighted_score` are then computed
+**in application code** from weights held in `config/organization.yaml`. The model never
+returns an overall fit score.
+
+This matters for three reasons. It is **tunable** — change a weight in config and the
+result moves predictably. It is **auditable** — a recruiter can see which dimension drove
+the outcome. And it is **defensible** — if a rejection is ever challenged, "0.61 overall"
+is not an answer, whereas "Terraform not evidenced, worth 15% of the must-have component"
+is.
+
+`UNKNOWN` is deliberately distinct from `NOT_MET`. Absence of evidence is not evidence of
+absence, and collapsing the two silently rejects candidates for things nobody asked them.
 
 ---
 
 ## JSON Schema
 
-See `schemas/` for canonical definitions. Workflow-specific output extends base schemas:
+Canonical schemas live in `schemas/`. WF-04 validates against
+**`schemas/WF-04_output.schema.json`**, which composes:
 
-```json
-{
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://recruitment.example.com/schemas/WF-04_output.json",
-  "type": "object",
-  "required": ["status", "workflow_id", "prompt_version", "confidence_aggregate"],
-  "properties": {
-    "status": {"enum": ["SUCCESS", "PARTIAL", "FAILED"]},
-    "workflow_id": {"const": "WF-04"},
-    "prompt_version": {"type": "string"},
-    "confidence_aggregate": {"type": "number", "minimum": 0, "maximum": 1},
-    "human_review_required": {"type": "boolean"},
-    "results": {"type": "object"},
-    "evidence": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["field", "snippet"],
-        "properties": {
-          "field": {"type": "string"},
-          "snippet": {"type": "string", "maxLength": 200}
-        }
-      }
-    }
-  }
-}
+| Schema | Role |
+|--------|------|
+| `envelope.schema.json` | Shared response envelope — status, versions, evidence, review flags. Defined once, reused by every workflow. |
+| `WF-04_results.schema.json` | The WF-04 payload — decomposed component scores, weighting provenance, requirement resolution, gaps. |
+
+Validate any output with:
+
+```
+python tools/validate_output.py samples/WF-04_output_example.json
 ```
 
-**Why:** Schema validation catches malformed model output before it reaches ATS or candidate-facing channels.
+`results` sets `additionalProperties: false` on purpose: it makes it impossible to
+smuggle an undeclared overall score into the payload.
+
+**Rules the schema cannot express** — enforce these in the validator:
+
+| Rule | Check |
+|------|-------|
+| BV-04 | `weighting.weights` values must sum to 1.0 (± 0.001). JSON Schema cannot do arithmetic. |
+| — | `overall_score` must equal the sum of `components[].weighted_score` (± 0.001). |
+| — | Each `weighted_score` must equal `raw_score × weight` (± 0.001). |
+| — | Every `component_id` must have a matching key in `weighting.weights`. |
+| BR-04 | `auto_archive_eligible` must be true exactly when `overall_score < 0.40`. |
+| VR-03 | Every `evidence[].snippet` must fuzzy-match the source at ≥ 0.8. |
 
 ---
 

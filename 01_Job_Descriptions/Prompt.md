@@ -121,7 +121,7 @@ See `schemas/` for canonical definitions. Workflow-specific output extends base 
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://recruitment.example.com/schemas/WF-01_output.json",
+  "$id": "{{org.schema_base_url}}/WF-01_output.json",
   "type": "object",
   "required": ["status", "workflow_id", "prompt_version", "confidence_aggregate"],
   "properties": {

@@ -1,0 +1,283 @@
+# =============================================================================
+# Organization configuration
+#
+# Copy this file to config/organization.yaml and edit it. That copy is
+# gitignored, so your real details never reach the repository.
+#
+#     cp config/organization.example.yaml config/organization.yaml
+#
+# Everything specific to one company lives here. Nothing else in the project
+# should hardcode a company name, an email address, a retention period, or a
+# scoring weight. `python tools/check_branding.py` enforces that.
+#
+# After editing, render the documentation with your details:
+#     python tools/render_docs.py
+# =============================================================================
+
+organization:
+  # Full legal entity name. Appears in offer letters and document footers.
+  legal_name: "Example Ltd"
+
+  # Short name used in candidate-facing copy and AI system prompts.
+  display_name: "Example"
+
+  # Base URL for JSON Schema $id values. Does not need to resolve — it only
+  # has to be a stable identifier you control. Use your own domain.
+  schema_base_url: "https://recruitment.example.com/schemas"
+
+  # Domain for automated recruitment mailboxes.
+  email_domain: "example.com"
+
+  # Shown in document footers. Leave blank to omit.
+  copyright_notice: "© 2026 Example Ltd. Internal Use Only."
+
+
+# -----------------------------------------------------------------------------
+# Who owns what. These appear in SOP ownership tables and failure notifications.
+# -----------------------------------------------------------------------------
+contacts:
+  ai_ops:
+    role: "AI Operations Lead"
+    email: "ai-ops@example.com"
+  ta_ops:
+    role: "Director, Talent Acquisition Operations"
+    email: "ta-ops@example.com"
+  hr_compliance:
+    role: "HR Compliance Manager"
+    email: "hr-compliance@example.com"
+  data_protection_officer:
+    # Required under GDPR Art. 37 for organizations doing large-scale
+    # systematic monitoring. Leave blank if you have not appointed one.
+    role: "Data Protection Officer"
+    email: ""
+
+
+# -----------------------------------------------------------------------------
+# Jurisdictions
+#
+# Retention was previously a flat 7 years everywhere, which conflicts with GDPR
+# storage limitation for unsuccessful candidates. It is now set per
+# jurisdiction, and the retention job reads these values.
+#
+# These defaults are a STARTING POINT, not legal advice. Confirm each with
+# counsel before going live.
+# -----------------------------------------------------------------------------
+jurisdictions:
+  - code: "EU"
+    name: "European Union"
+    regulations: ["GDPR"]
+    retention:
+      # Unsuccessful candidates: short by default. Longer requires explicit,
+      # recorded consent to stay on file.
+      unsuccessful_candidate_days: 180
+      unsuccessful_with_consent_days: 730
+      hired_employee_days: 2555        # ~7 years, employment record
+      audit_log_days: 2555
+    requires_explicit_consent: true
+    automated_decision_disclosure: true   # GDPR Art. 22
+
+  - code: "UK"
+    name: "United Kingdom"
+    regulations: ["UK GDPR", "DPA 2018"]
+    retention:
+      unsuccessful_candidate_days: 180
+      unsuccessful_with_consent_days: 730
+      hired_employee_days: 2555
+      audit_log_days: 2555
+    requires_explicit_consent: true
+    automated_decision_disclosure: true
+
+  - code: "US-NY"
+    name: "United States — New York City"
+    regulations: ["NYC Local Law 144", "EEOC"]
+    retention:
+      unsuccessful_candidate_days: 1095   # EEOC record-keeping
+      unsuccessful_with_consent_days: 1095
+      hired_employee_days: 2555
+      audit_log_days: 2555
+    requires_explicit_consent: false
+    automated_decision_disclosure: true
+    # LL144: annual independent bias audit, results published, candidates
+    # notified at least 10 business days before use.
+    bias_audit_required: true
+    bias_audit_frequency_days: 365
+    candidate_notice_days: 10
+
+  - code: "IN"
+    name: "India"
+    regulations: ["DPDP Act 2023"]
+    retention:
+      unsuccessful_candidate_days: 365
+      unsuccessful_with_consent_days: 1095
+      hired_employee_days: 2555
+      audit_log_days: 2555
+    requires_explicit_consent: true
+    automated_decision_disclosure: false
+
+# Applied when a candidate's jurisdiction cannot be determined. Deliberately
+# the most restrictive option — err toward deleting sooner.
+default_jurisdiction: "EU"
+
+
+# -----------------------------------------------------------------------------
+# Locales accepted for resume parsing. Documents outside this list are still
+# processed, but tagged and given reduced confidence rather than rejected.
+# -----------------------------------------------------------------------------
+locales:
+  supported: ["en", "en-GB", "en-US", "en-IN"]
+  default: "en"
+
+currency:
+  default: "USD"
+  # ISO 4217 codes permitted in compensation fields.
+  allowed: ["USD", "EUR", "GBP", "INR"]
+
+
+# -----------------------------------------------------------------------------
+# Text inserted into externally published job descriptions (business rule BR-03
+# blocks publication without it). Replace with your approved wording.
+# -----------------------------------------------------------------------------
+eeo_statement: >
+  Example Ltd is an equal opportunity employer. We consider all qualified
+  applicants without regard to race, colour, religion, sex, sexual orientation,
+  gender identity, national origin, disability, or veteran status.
+
+
+# -----------------------------------------------------------------------------
+# Confidence thresholds
+#
+# WARNING: these numbers are PROVISIONAL. They were chosen as round figures,
+# not measured. `confidence_aggregate` is currently self-reported by the model
+# and is not calibrated, so 0.85 does not mean 85% accuracy.
+#
+# Phase 4.3 replaces these with values derived from the golden set. Until then,
+# treat auto-publish as unproven and keep review rates high.
+# -----------------------------------------------------------------------------
+confidence:
+  auto_publish_min: 0.85
+  mandatory_review_min: 0.70
+  spot_check_min: 0.50
+  # Below spot_check_min, automation is refused and the item goes to manual
+  # processing.
+  field_highlight_below: 0.60
+  calibrated: false          # flip to true only after Phase 4.3
+  calibration_date: null
+
+
+# -----------------------------------------------------------------------------
+# Matching rubric
+#
+# Weights MUST sum to 1.0 — business rule BV-04, enforced by the config loader
+# at startup rather than discovered at runtime.
+#
+# The model scores each component independently and cites evidence. The
+# application combines them arithmetically using these weights. There is no
+# single opaque fit score anywhere in the pipeline.
+#
+# Define one scheme per job family. `default` is used when a requisition names
+# no scheme.
+# -----------------------------------------------------------------------------
+matching:
+  default_scheme: "default"
+  auto_archive_below: 0.40      # BR-04; override requires written justification
+
+  recommendation_bands:
+    strong_match_min: 0.80
+    match_min: 0.65
+    partial_match_min: 0.45
+    # below partial_match_min => NO_MATCH
+
+  schemes:
+    default:
+      version: "1.0.0"
+      weights:
+        must_have_coverage: 0.5
+        experience_band: 0.3
+        domain_match: 0.2
+
+    swe-ic:
+      version: "1.0.0"
+      description: "Individual-contributor software engineering roles."
+      weights:
+        must_have_coverage: 0.6
+        experience_band: 0.2
+        domain_match: 0.2
+
+  # Attributes never used in scoring. The Phase 4.2 bias harness perturbs
+  # exactly these and asserts the score does not move.
+  excluded_signals:
+    - name
+    - gender
+    - age
+    - date_of_birth
+    - nationality
+    - marital_status
+    - photograph
+    - address
+    - university_prestige
+
+
+# -----------------------------------------------------------------------------
+# Service levels, in business hours. Previously every workflow claimed the same
+# 4 hours, which was a templating artifact rather than a decision.
+# -----------------------------------------------------------------------------
+slas:
+  extraction_hours: 4          # WF-03
+  matching_hours: 4            # WF-04
+  review_queue_hours: 24
+  hiring_manager_approval_hours: 24
+  hrbp_approval_hours: 48
+  legal_approval_hours: 72
+
+
+# -----------------------------------------------------------------------------
+# Input limits (Validation.md section 2)
+# -----------------------------------------------------------------------------
+limits:
+  max_file_size_mb: 10
+  accepted_extensions: [".pdf", ".docx", ".doc", ".txt"]
+  min_extractable_chars: 100   # below this, OCR fallback runs
+  max_pages: 40
+
+
+# -----------------------------------------------------------------------------
+# Adapters
+#
+# Every external dependency sits behind an interface. The defaults below need
+# no cloud account and no ATS — just one LLM API key. Swap a value to move to
+# managed infrastructure without touching application code.
+# -----------------------------------------------------------------------------
+adapters:
+  storage:
+    provider: "local"          # local | s3 | azure_blob | gdrive
+    local:
+      root: "./data/artifacts"
+
+  llm:
+    provider: "anthropic"      # anthropic | openai | azure_openai | bedrock
+    model: "claude-sonnet-4-5"
+    # Read from the environment, never stored here. See .env.example.
+    api_key_env: "ANTHROPIC_API_KEY"
+    temperature: 0.1           # 0.1 for extraction, 0.3 for question generation
+    max_output_tokens: 4096
+    timeout_seconds: 120
+    max_retries: 3
+    # Always use the provider's native structured-output mode. Never ask for
+    # JSON in prose.
+    structured_output: true
+
+  ats:
+    provider: "csv"            # csv | greenhouse | lever | workday | none
+    csv:
+      export_dir: "./data/ats-export"
+
+  auth:
+    provider: "single_user"    # single_user | local | oidc
+    single_user:
+      email: "you@example.com"
+      display_name: "Local Operator"
+      role: "admin"            # admin | recruiter | hiring_manager
+
+  database:
+    # Overridden by the DATABASE_URL environment variable when present.
+    url: "postgresql+psycopg://recruit:recruit@localhost:5432/recruit"

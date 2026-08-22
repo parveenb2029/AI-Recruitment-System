@@ -30,6 +30,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   they are the templates that produced the documentation's known defects, and
   are a useful reference while the docs are de-duplicated.
 
+- **Phase 1** — real output contracts for WF-03 and WF-04: `envelope.schema.json`,
+  `WF-0{3,4}_results.schema.json`, `WF-0{3,4}_output.schema.json`, worked examples,
+  and `tools/validate_output.py`. Replaces the `"results": {}` placeholder.
+- **Phase 2** — `config/organization.example.yaml`, `.env.example`, adapter
+  interfaces under `src/recruit/adapters/`, `tools/render_docs.py`, and
+  `tools/check_branding.py`.
+
+### Fixed
+- Retention was a flat 7 years for every artifact in every jurisdiction, which
+  conflicts with GDPR storage limitation for unsuccessful EU candidates. Now set
+  per jurisdiction in organization config.
+- 51 references to a fictional company ("Contoso Ltd", `*@contoso.com`,
+  `recruitment.contoso.com`) across 27 files, plus `recruitment.example.com` and
+  `@company.com` in 14 more. All now resolve from config.
+
 ### Notes
 - Project state at this commit: documentation blueprint, no application code.
   136 files, 112 Markdown. See `CLAUDE.md` for the roadmap.

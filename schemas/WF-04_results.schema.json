@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WF-04 JD-Candidate Matching — Results Payload",
+  "description": "The payload that WF-04 produces. The score is DECOMPOSED: each component is judged and evidenced independently, and overall_score is computed arithmetically in application code from the component weights - never returned as a single opaque number by the model. This is what makes a rejection explainable and defensible.",
+  "type": "object",
+  "required": ["overall_score", "recommendation", "components", "weighting"],
+  "additionalProperties": false,
+  "properties": {
+    "overall_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "COMPUTED IN CODE as the sum of components[].weighted_score. Must not be produced by the model. Business rule BV-04 requires component weights to sum to 1.0; enforce that in the validator, since JSON Schema cannot express arithmetic."
+    },
+    "recommendation": {
+      "enum": ["STRONG_MATCH", "MATCH", "PARTIAL_MATCH", "NO_MATCH"],
+      "description": "Banded from overall_score using thresholds in organization config. Advisory only - never an automated rejection. Final decisions are human (Workflow_Spec.md section 15)."
+    },
+    "components": {
+      "type": "array",
+      "minItems": 1,
+      "description": "One entry per scoring dimension. Adding a dimension means adding an entry here and a weight in 'weighting' - the arithmetic does not change.",
+      "items": {
+        "type": "object",
+        "required": ["component_id", "raw_score", "weight", "weighted_score", "rationale"],
+        "additionalProperties": false,
+        "properties": {
+          "component_id": {
+            "enum": ["must_have_coverage", "experience_band", "domain_match"],
+            "description": "Extend this enum when adding a dimension, so unknown components fail validation rather than being silently ignored."
+          },
+          "label": { "type": "string" },
+          "raw_score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "This dimension judged on its own merits, independent of the others."
+          },
+          "weight": { "type": "number", "minimum": 0, "maximum": 1 },
+          "weighted_score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "raw_score * weight. Computed in code."
+          },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+          "rationale": {
+            "type": "string",
+            "description": "Why this score. Must reference the evidence, not restate the number."
+          },
+          "evidence": {
+            "type": "array",
+            "items": { "$ref": "envelope.schema.json#/$defs/evidence_ref" }
+          }
+        }
+      }
+    },
+    "weighting": {
+      "type": "object",
+      "required": ["scheme_id", "weights"],
+      "description": "Which rubric produced this score. Recorded per result so a historical match stays reproducible after the rubric changes.",
+      "properties": {
+        "scheme_id": { "type": "string" },
+        "scheme_version": { "type": "string" },
+        "weights": {
+          "type": "object",
+          "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 },
+          "description": "Loaded from config/organization.yaml, not hardcoded. Must sum to 1.0 (BV-04)."
+        }
+      }
+    },
+    "must_have_requirements": {
+      "type": "array",
+      "description": "Every must-have from the JD, individually resolved. UNKNOWN is distinct from NOT_MET - absence of evidence is not evidence of absence, and conflating them silently rejects candidates.",
+      "items": {
+        "type": "object",
+        "required": ["requirement", "status"],
+        "properties": {
+          "requirement_id": { "type": "string" },
+          "requirement": { "type": "string" },
+          "status": { "enum": ["MET", "PARTIAL", "NOT_MET", "UNKNOWN"] },
+          "evidence": {
+            "type": "array",
+            "items": { "$ref": "envelope.schema.json#/$defs/evidence_ref" }
+          }
+        }
+      }
+    },
+    "gaps": {
+      "type": "array",
+      "description": "What the candidate is missing, for the recruiter and for candidate feedback.",
+      "items": {
+        "type": "object",
+        "required": ["requirement", "severity"],
+        "properties": {
+          "requirement": { "type": "string" },
+          "severity": { "enum": ["BLOCKING", "SIGNIFICANT", "MINOR"] },
+          "note": { "type": "string" }
+        }
+      }
+    },
+    "auto_archive_eligible": {
+      "type": "boolean",
+      "description": "True when overall_score < 0.40 (BR-04). Eligibility only - archiving still requires the configured recruiter path, and an override requires written justification recorded in the audit log."
+    },
+    "excluded_signals": {
+      "type": "array",
+      "description": "Protected or proxy attributes deliberately excluded from scoring - name, gender, age, nationality, university prestige, address. The Phase 4.2 bias harness perturbs exactly these and asserts overall_score does not move.",
+      "items": { "type": "string" }
+    }
+  }
+}

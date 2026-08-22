@@ -93,60 +93,85 @@ Include field-level confidence scores for all extracted or inferred fields.
 
 ```json
 {
-  "status": "SUCCESS | PARTIAL | FAILED",
+  "status": "SUCCESS",
   "workflow_id": "WF-03",
   "prompt_version": "1.0.0",
+  "model_id": "gpt-4o-2026-05-01",
   "requisition_id": "REQ-2026-0142",
   "candidate_id": "CAN-88421",
   "processed_at": "2026-08-03T10:30:00Z",
-  "confidence_aggregate": 0.92,
-  "results": {},
-  "evidence": [
-    {"field": "example_field", "snippet": "verbatim source text", "source_location": "page 1"}
-  ],
-  "flags": [],
+  "confidence_aggregate": 0.93,
   "human_review_required": false,
-  "review_reasons": []
+  "review_reasons": [],
+  "flags": [],
+  "evidence": [
+    {"field": "experience[0].title", "pointer": "/profile/experience/0/title",
+     "snippet": "Senior Software Engineer", "source_location": "page 1",
+     "char_start": 412, "char_end": 436}
+  ],
+  "results": {
+    "profile": { "...": "candidate profile, shape per schemas/resume.schema.json" },
+    "field_confidence": {
+      "/personal_info/email": 0.98,
+      "/experience/0/start_date": 0.91,
+      "/experience/1/end_date": 0.58
+    },
+    "low_confidence_fields": ["/experience/1/end_date"],
+    "conflicts": [],
+    "extraction_metadata": {
+      "ocr_used": false,
+      "pages_processed": 2,
+      "content_sha256": "9f2b7c1e...59e0",
+      "locale_detected": "en-IN",
+      "truncated": false
+    },
+    "excluded_signals": ["photograph", "date_of_birth", "marital_status", "gender"]
+  }
 }
 ```
 
-**Why:** Downstream automation branches on `status`, `human_review_required`, and `confidence_aggregate`. Partial success is first-class to avoid silent data loss.
+**Why:** Downstream automation branches on `status`, `human_review_required`, and
+`confidence_aggregate`. `PARTIAL` is first-class so partial extractions are never
+silently discarded.
+
+`field_confidence` is keyed by **JSON Pointer** into `results.profile` rather than by
+field name. That lets the review console flag every field below the 0.60 threshold
+(`Validation.md` §6) generically, without hardcoding the profile shape.
+
+`excluded_signals` records attributes that were present in the source and
+deliberately not extracted. The bias harness (Phase 4.2) checks that this exclusion
+actually happened rather than taking it on trust.
 
 ---
 
 ## JSON Schema
 
-See `schemas/` for canonical definitions. Workflow-specific output extends base schemas:
+Canonical schemas live in `schemas/`. WF-03 validates against
+**`schemas/WF-03_output.schema.json`**, which composes:
 
-```json
-{
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://recruitment.example.com/schemas/WF-03_output.json",
-  "type": "object",
-  "required": ["status", "workflow_id", "prompt_version", "confidence_aggregate"],
-  "properties": {
-    "status": {"enum": ["SUCCESS", "PARTIAL", "FAILED"]},
-    "workflow_id": {"const": "WF-03"},
-    "prompt_version": {"type": "string"},
-    "confidence_aggregate": {"type": "number", "minimum": 0, "maximum": 1},
-    "human_review_required": {"type": "boolean"},
-    "results": {"type": "object"},
-    "evidence": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["field", "snippet"],
-        "properties": {
-          "field": {"type": "string"},
-          "snippet": {"type": "string", "maxLength": 200}
-        }
-      }
-    }
-  }
-}
+| Schema | Role |
+|--------|------|
+| `envelope.schema.json` | Shared response envelope — status, versions, evidence, review flags. Defined once, reused by every workflow. |
+| `WF-03_results.schema.json` | The WF-03 payload — extracted profile, per-field confidence, conflicts, extraction metadata. |
+| `resume.schema.json` | Referenced by the payload for `results.profile`. Reused, not duplicated. |
+
+Validate any output with:
+
+```
+python tools/validate_output.py samples/WF-03_output_example.json
 ```
 
-**Why:** Schema validation catches malformed model output before it reaches ATS or candidate-facing channels.
+The script loads `schemas/` into a reference registry so the bare-filename `$ref`s
+resolve without the schemas being published anywhere.
+
+**Rules the schema cannot express** — enforce these in the validator:
+
+| Rule | Check |
+|------|-------|
+| VR-03 | Every `evidence[].snippet` must fuzzy-match the source text at ≥ 0.8, else flag `POTENTIAL_HALLUCINATION`. |
+| VR-04 | Employment dates chronologically consistent; `start_date` ≤ `end_date`. |
+| — | Every pointer in `field_confidence` must resolve to a real path in `results.profile`. |
+| — | `low_confidence_fields` must agree with `field_confidence` and the configured threshold. |
 
 ---
 
