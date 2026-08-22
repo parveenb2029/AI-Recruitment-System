@@ -138,7 +138,7 @@ artifact. Summary:
 
 | Phase | Work | Status |
 |-------|------|--------|
-| 0 | Repo foundation | in progress |
+| 0 | Repo foundation | **done** |
 | 1 | WF-03 + WF-04 result schemas | not started |
 | 2 | Config layer, de-branding, adapters | not started |
 | 3.1–3.6 | Ingest → extract → validate → persist → review console → match | not started |
@@ -155,5 +155,5 @@ Append here. Newest last.
   review console. `generate.py` and `_create_docx_samples.py` retired to
   `tools/legacy/` (byte-identical, checksum-verified) and replaced at the root by
   inert stubs; docs are hand-maintained from now on. Licence MIT, © Parveen Bajaj.
-  `git init` and the initial commit still pending — run the block in the session
-  transcript, then delete the two root stubs.
+  Repository initialized on branch `main`; initial commit made. Phase 0 complete.
+  Root stubs `generate.py` / `_create_docx_samples.py` can be deleted whenever.
