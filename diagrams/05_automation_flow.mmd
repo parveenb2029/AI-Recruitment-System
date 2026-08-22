@@ -1,0 +1,9 @@
+flowchart LR
+    TRIG[Webhook/Email/Schedule] --> N8N[n8n Orchestrator]
+    N8N --> PY[Python Workers]
+    PY --> OCR[OCR Service]
+    PY --> AI[Azure OpenAI]
+    N8N --> SP[SharePoint]
+    N8N --> ATS[ATS API]
+    N8N --> SLACK[Teams Notify]
+    PY --> DLQ[Dead Letter Queue]

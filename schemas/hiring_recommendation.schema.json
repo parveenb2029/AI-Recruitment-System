@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://recruitment.contoso.com/schemas/hiring_recommendation.json",
+  "title": "Hiring Recommendation",
+  "type": "object",
+  "required": [
+    "recommendation_id",
+    "candidate_id",
+    "requisition_id",
+    "decision",
+    "approvers"
+  ],
+  "properties": {
+    "recommendation_id": {
+      "type": "string"
+    },
+    "candidate_id": {
+      "type": "string"
+    },
+    "requisition_id": {
+      "type": "string"
+    },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "OFFER",
+        "REJECT",
+        "HOLD",
+        "ADDITIONAL_INTERVIEW"
+      ]
+    },
+    "overall_match_score": {
+      "type": "number"
+    },
+    "interview_consensus": {
+      "type": "string"
+    },
+    "compensation_proposal": {
+      "type": "object",
+      "properties": {
+        "base_salary": {
+          "type": "number"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "equity": {
+          "type": "string"
+        },
+        "signing_bonus": {
+          "type": "number"
+        },
+        "within_band": {
+          "type": "boolean"
+        }
+      }
+    },
+    "approvers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "approved_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "APPROVED",
+              "REJECTED"
+            ]
+          }
+        }
+      }
+    },
+    "audit_trail": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

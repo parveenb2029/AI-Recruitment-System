@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://recruitment.contoso.com/schemas/prompt_metadata.json",
+  "title": "Prompt Metadata",
+  "type": "object",
+  "required": [
+    "prompt_id",
+    "prompt_version",
+    "owner",
+    "model_compatibility"
+  ],
+  "properties": {
+    "prompt_id": {
+      "type": "string"
+    },
+    "prompt_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "owner": {
+      "type": "string"
+    },
+    "workflow_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "model_compatibility": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "temperature": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 2
+    },
+    "max_tokens": {
+      "type": "integer"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "approved_by": {
+      "type": "string"
+    },
+    "eval_score": {
+      "type": "number"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "DRAFT",
+        "TESTING",
+        "APPROVED",
+        "DEPRECATED"
+      ]
+    }
+  }
+}

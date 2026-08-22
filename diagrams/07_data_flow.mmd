@@ -1,0 +1,11 @@
+flowchart LR
+    PDF[PDF/DOCX] --> OCR[Text Extraction]
+    OCR --> JSON1[Structured JSON]
+    JD[JD JSON] --> MATCH[Matcher]
+    JSON1 --> MATCH
+    MATCH --> REPORT[Match Report]
+    REPORT --> SHORT[Shortlist JSON]
+    SHORT --> IQ[Question Doc]
+    IQ --> FB[Feedback JSON]
+    FB --> DEC[Decision Package]
+    DEC --> ATS[(ATS)]

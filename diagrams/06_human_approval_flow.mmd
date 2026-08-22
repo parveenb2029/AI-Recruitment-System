@@ -1,0 +1,12 @@
+flowchart TD
+    AI[AI Output] --> AUTO{Auto-publish eligible?}
+    AUTO -->|Yes| PUB[Publish Artifact]
+    AUTO -->|No| TA[TA Specialist Review]
+    TA --> HM{HM Approval needed?}
+    HM -->|Yes| HMA[Hiring Manager Approval]
+    HM -->|No| PUB
+    HMA --> HRBP{Offer/Reject?}
+    HRBP -->|Offer| OFF[HRBP Offer Approval]
+    HRBP -->|Reject| REJ[HRBP Rejection Approval]
+    OFF --> PUB
+    REJ --> PUB

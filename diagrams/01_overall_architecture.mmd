@@ -1,0 +1,47 @@
+flowchart TB
+    subgraph External
+        C[Candidates]
+        HM[Hiring Managers]
+        INT[Interviewers]
+    end
+    subgraph Intake
+        PORTAL[Careers Portal]
+        EMAIL[Email Intake]
+        SP[SharePoint]
+    end
+    subgraph AI_Recruitment_Platform
+        ORCH[Workflow Orchestrator]
+        LLM[LLM Gateway]
+        VAL[Validation Engine]
+        RC[Review Console]
+        PL[Prompt Library]
+    end
+    subgraph Storage
+        ART[Artifact Store 01-08]
+        SCH[Schema Registry]
+        DLQ[Dead Letter Queue]
+    end
+    subgraph Enterprise
+        ATS[Applicant Tracking System]
+        BI[Power BI Analytics]
+        SIEM[SIEM Audit]
+    end
+    C --> PORTAL
+    C --> EMAIL
+    HM --> SP
+    PORTAL --> ORCH
+    EMAIL --> ORCH
+    SP --> ORCH
+    PL --> LLM
+    ORCH --> LLM
+    ORCH --> VAL
+    LLM --> VAL
+    VAL --> RC
+    HM --> RC
+    INT --> RC
+    RC --> ART
+    VAL --> ART
+    ORCH --> ATS
+    ART --> BI
+    ORCH --> SIEM
+    VAL --> DLQ

@@ -1,0 +1,14 @@
+flowchart TD
+    REG[Prompt Registry] --> SYS[System Prompt]
+    REG --> USER[User Prompt Template]
+    INPUT[Runtime Input] --> USER
+    SYS --> LLM[LLM API]
+    USER --> LLM
+    LLM --> RAW[Raw Response]
+    RAW --> PARSE[JSON Parse]
+    PARSE --> SCHEMA[Schema Validation]
+    SCHEMA --> BIZ[Business Rules]
+    BIZ --> CONF{Confidence OK?}
+    CONF -->|Yes| OUT[Published Output]
+    CONF -->|No| REV[Human Review]
+    REV --> OUT

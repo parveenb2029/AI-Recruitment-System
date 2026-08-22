@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://recruitment.contoso.com/schemas/interview_feedback.json",
+  "title": "Interview Feedback",
+  "type": "object",
+  "required": [
+    "feedback_id",
+    "candidate_id",
+    "requisition_id",
+    "interviewer",
+    "stage",
+    "recommendation"
+  ],
+  "properties": {
+    "feedback_id": {
+      "type": "string"
+    },
+    "candidate_id": {
+      "type": "string"
+    },
+    "requisition_id": {
+      "type": "string"
+    },
+    "interviewer": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "role": {
+          "type": "string"
+        }
+      }
+    },
+    "stage": {
+      "type": "string",
+      "enum": [
+        "Phone Screen",
+        "Technical",
+        "Behavioral",
+        "Panel",
+        "Final"
+      ]
+    },
+    "interview_date": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "competency_ratings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "competency",
+          "rating"
+        ],
+        "properties": {
+          "competency": {
+            "type": "string"
+          },
+          "rating": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "strengths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "concerns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "recommendation": {
+      "type": "string",
+      "enum": [
+        "Strong Hire",
+        "Hire",
+        "No Hire",
+        "Strong No Hire"
+      ]
+    },
+    "summary": {
+      "type": "string"
+    },
+    "confidence_aggregate": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    }
+  }
+}

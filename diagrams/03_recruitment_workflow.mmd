@@ -1,0 +1,10 @@
+flowchart LR
+    JD[01 JD Parsing] --> INTAKE[02 Resume Intake]
+    INTAKE --> EXTRACT[03 Data Extraction]
+    EXTRACT --> MATCH[04 JD Matching]
+    MATCH --> SHORT[05 Shortlisting]
+    SHORT --> IQ[06 Interview Questions]
+    IQ --> INTERVIEW[Human Interview]
+    INTERVIEW --> FB[07 Feedback Processing]
+    FB --> DECIDE[08 Final Decision]
+    DECIDE --> OFFER[Offer / Reject]

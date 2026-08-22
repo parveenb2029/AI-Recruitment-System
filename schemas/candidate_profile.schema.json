@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://recruitment.contoso.com/schemas/candidate_profile.json",
+  "title": "Candidate Profile",
+  "allOf": [
+    {
+      "$ref": "resume.schema.json"
+    }
+  ],
+  "properties": {
+    "applications": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "requisition_id": {
+            "type": "string"
+          },
+          "applied_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "source": {
+            "type": "string"
+          },
+          "stage": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "match_scores": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "requisition_id": {
+            "type": "string"
+          },
+          "overall_score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "skill_score": {
+            "type": "number"
+          },
+          "experience_score": {
+            "type": "number"
+          },
+          "education_score": {
+            "type": "number"
+          }
+        }
+      }
+    }
+  }
+}

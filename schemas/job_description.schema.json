@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://recruitment.contoso.com/schemas/job_description.json",
+  "title": "Job Description",
+  "type": "object",
+  "required": [
+    "requisition_id",
+    "title",
+    "department",
+    "required_skills",
+    "experience_years"
+  ],
+  "properties": {
+    "requisition_id": {
+      "type": "string",
+      "pattern": "^REQ-[0-9]{4}-[0-9]+$"
+    },
+    "title": {
+      "type": "string"
+    },
+    "level": {
+      "type": "string",
+      "enum": [
+        "Entry",
+        "Mid",
+        "Senior",
+        "Staff",
+        "Principal",
+        "Director"
+      ]
+    },
+    "department": {
+      "type": "string"
+    },
+    "location": {
+      "type": "string"
+    },
+    "employment_type": {
+      "type": "string",
+      "enum": [
+        "Full-time",
+        "Part-time",
+        "Contract"
+      ]
+    },
+    "experience_years": {
+      "type": "object",
+      "properties": {
+        "min": {
+          "type": "integer"
+        },
+        "max": {
+          "type": "integer"
+        }
+      }
+    },
+    "required_skills": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "preferred_skills": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "education_requirements": {
+      "type": "string"
+    },
+    "responsibilities": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "compensation_band": {
+      "type": "object",
+      "properties": {
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "currency": {
+          "type": "string"
+        }
+      }
+    },
+    "eeo_statement": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "DRAFT",
+        "OPEN",
+        "ON_HOLD",
+        "CLOSED",
+        "FILLED"
+      ]
+    }
+  }
+}

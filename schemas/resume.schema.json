@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://recruitment.contoso.com/schemas/resume.json",
+  "title": "Resume",
+  "type": "object",
+  "required": [
+    "candidate_id",
+    "personal_info",
+    "experience",
+    "education",
+    "skills"
+  ],
+  "properties": {
+    "candidate_id": {
+      "type": "string",
+      "pattern": "^CAN-[0-9]+$"
+    },
+    "personal_info": {
+      "type": "object",
+      "required": [
+        "full_name",
+        "email"
+      ],
+      "properties": {
+        "full_name": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "linkedin_url": {
+          "type": "string",
+          "format": "uri"
+        }
+      }
+    },
+    "summary": {
+      "type": "string"
+    },
+    "experience": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "company",
+          "title",
+          "start_date"
+        ],
+        "properties": {
+          "company": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "end_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "is_current": {
+            "type": "boolean"
+          },
+          "description": {
+            "type": "string"
+          },
+          "skills_used": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "education": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "institution",
+          "degree"
+        ],
+        "properties": {
+          "institution": {
+            "type": "string"
+          },
+          "degree": {
+            "type": "string"
+          },
+          "field_of_study": {
+            "type": "string"
+          },
+          "graduation_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "gpa": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "skills": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "certifications": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "extraction_metadata": {
+      "type": "object",
+      "properties": {
+        "confidence_aggregate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "prompt_version": {
+          "type": "string"
+        },
+        "extracted_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,85 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# uv
+.uv/
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+
+# Type checkers / linters
+.mypy_cache/
+.dmypy.json
+.ruff_cache/
+.pyre/
+
+# ---- Secrets & config ----
+.env
+.env.*
+!.env.example
+config/organization.yaml
+!config/organization.example.yaml
+*.pem
+*.key
+credentials.json
+service-account*.json
+
+# ---- Runtime data ----
+# The numbered folders 01-08 are DOCUMENTATION only. Runtime artifacts belong in
+# Postgres + object storage, never committed. See CLAUDE.md.
+data/
+uploads/
+artifacts/
+DLQ/
+*.db
+*.sqlite3
+storage/
+
+# Candidate data must never be committed - synthetic/consented only, in samples/
+evals/data/
+!evals/data/.gitkeep
+
+# ---- Logs ----
+*.log
+logs/
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# ---- Editors ----
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+
+# ---- Node (review console assets, if any) ----
+node_modules/
+npm-debug.log*

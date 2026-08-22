@@ -1,0 +1,40 @@
+{
+  "requisition_id": "REQ-2026-0142",
+  "title": "Software Engineer II \u2014 Cloud Platform",
+  "level": "Mid",
+  "department": "Engineering",
+  "location": "Bangalore, India (Hybrid)",
+  "employment_type": "Full-time",
+  "experience_years": {
+    "min": 3,
+    "max": 5
+  },
+  "required_skills": [
+    "Python",
+    "REST APIs",
+    "Docker",
+    "Kubernetes",
+    "SQL"
+  ],
+  "preferred_skills": [
+    "Azure",
+    "CI/CD",
+    "System Design",
+    "Microservices"
+  ],
+  "education_requirements": "Bachelor's degree in Computer Science or equivalent practical experience",
+  "responsibilities": [
+    "Design and implement scalable REST microservices",
+    "Deploy and operate containerized workloads on Azure AKS",
+    "Collaborate with product and platform teams on architecture decisions",
+    "Participate in code reviews and mentor junior engineers",
+    "Contribute to CI/CD pipeline improvements"
+  ],
+  "compensation_band": {
+    "min": 1800000,
+    "max": 2800000,
+    "currency": "INR"
+  },
+  "eeo_statement": "Contoso is an equal opportunity employer. All qualified applicants will receive consideration without regard to race, color, religion, sex, national origin, disability, or veteran status.",
+  "status": "OPEN"
+}
