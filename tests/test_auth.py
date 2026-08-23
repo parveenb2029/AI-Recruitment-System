@@ -6,7 +6,6 @@ an admin route, and every decision names a real authenticated person.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import pytest
@@ -181,14 +180,54 @@ def test_hiring_manager_cannot_reach_an_admin_route(client):
     assert client.get("/audit").status_code == 403
 
 
+def test_forbidden_browser_gets_a_page_not_raw_json(client):
+    sign_in(client, "hm@x.com")
+    response = client.get("/audit", headers={"accept": "text/html"})
+    assert response.status_code == 403
+    assert "Your role does not permit this" in response.text
+
+
 def test_admin_can_reach_the_admin_route(client):
     sign_in(client, "admin@x.com")
     assert client.get("/audit").status_code == 200
 
 
-def test_signed_out_user_gets_nothing(client):
-    assert client.get("/").status_code == 401
-    assert client.get("/audit").status_code == 401
+def test_signed_out_browser_is_redirected_to_sign_in(client):
+    """A 401 with a Location header does nothing — browsers only follow
+    Location on a 3xx, so an unauthenticated visitor saw raw JSON."""
+    response = client.get("/", headers={"accept": "text/html"})
+    assert response.status_code == 303
+    assert response.headers["location"] == "/login"
+
+
+def test_signed_out_browser_keeps_its_destination(client):
+    response = client.get("/audit", headers={"accept": "text/html"})
+    assert response.status_code == 303
+    assert response.headers["location"] == "/login?next=/audit"
+
+
+def test_signed_out_api_client_gets_401(client):
+    """A programmatic caller wants a status code, not a redirect to a form."""
+    response = client.get("/", headers={"accept": "application/json"})
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Not signed in"
+
+
+def test_sign_in_returns_you_to_where_you_were_going(client):
+    response = client.post("/login", data={
+        "email": "admin@x.com", "password": "correct-horse-battery",
+        "next": "/audit"})
+    assert response.status_code == 303
+    assert response.headers["location"] == "/audit"
+
+
+def test_next_cannot_be_used_as_an_open_redirect(client):
+    """Otherwise a crafted sign-in link bounces the user to another site."""
+    for hostile in ("https://evil.example.com/steal", "//evil.example.com"):
+        response = client.post("/login", data={
+            "email": "admin@x.com", "password": "correct-horse-battery",
+            "next": hostile})
+        assert response.headers["location"] == "/"
 
 
 def test_recruiter_can_view_the_queue_but_not_approve(client, task_id):

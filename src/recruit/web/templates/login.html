@@ -17,6 +17,7 @@ button[type=submit]{width:100%;background:var(--accent);border-color:var(--accen
   <p class="sub">Every review decision is recorded against your account.</p>
   {% if error %}<div class="err">Email or password not recognised.</div>{% endif %}
   <form method="post" action="/login">
+    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
     <label for="email">Email</label>
     <input id="email" name="email" type="email" autocomplete="username" required autofocus>
     <label for="password">Password</label>

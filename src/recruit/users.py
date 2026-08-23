@@ -34,10 +34,20 @@ def _adapter(url: str | None):
 
 
 def _prompt_password() -> str:
-    first = getpass.getpass("  Password (min 8 chars): ")
-    second = getpass.getpass("  Confirm: ")
+    """Prompt twice, hiding input.
+
+    getpass shows nothing at all while you type — no dots, no asterisks. That
+    surprises people, so say it once up front rather than leaving them staring
+    at a cursor wondering whether the keyboard works.
+    """
+    print("  Type the password and press Enter. Nothing will appear on screen.")
+    try:
+        first = getpass.getpass("  Password (min 8 chars): ")
+        second = getpass.getpass("  Confirm: ")
+    except (KeyboardInterrupt, EOFError):
+        raise AuthError("Cancelled. No account was created.") from None
     if first != second:
-        raise AuthError("Passwords do not match.")
+        raise AuthError("Passwords do not match. No account was created.")
     return first
 
 
@@ -100,6 +110,9 @@ def main(argv: list[str] | None = None) -> int:
     except AuthError as error:
         print(f"  {error}", file=sys.stderr)
         return 1
+    except KeyboardInterrupt:
+        print("\n  Cancelled.", file=sys.stderr)
+        return 130
     return 0
 
 

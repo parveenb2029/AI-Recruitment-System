@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Not permitted{% endblock %}
+{% block head %}
+<style>
+.box{max-width:520px;margin:10vh auto;background:var(--surface);border:1px solid var(--rule);border-left:3px solid var(--crit);border-radius:4px;padding:26px}
+.box h2{margin:0 0 8px;font-size:1.1rem}
+.box p{margin:0 0 10px;color:var(--ink-2);font-size:14.5px}
+.box code{font-size:12.5px}
+</style>
+{% endblock %}
+{% block content %}
+<div class="box">
+  <h2>Your role does not permit this</h2>
+  <p class="mono" style="font-size:13px;color:var(--crit)">{{ message }}</p>
+  <p>
+    Roles are checked on the server, so this is refused regardless of what the
+    interface happens to show. If you need this access, an administrator can
+    change your role.
+  </p>
+  <p><a href="/">Back to the review queue</a></p>
+</div>
+{% endblock %}

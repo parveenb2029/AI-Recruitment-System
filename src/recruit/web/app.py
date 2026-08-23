@@ -7,18 +7,40 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import Cookie, Depends, FastAPI, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..auth import PERMISSIONS, PermissionDenied, Principal
+from ..auth import PermissionDenied, Principal
 from ..db.auth_repository import build_auth
 from ..db.models import AuditLog, Document, ReviewTask, WorkflowRun
 from ..db.repository import Repository
 from ..db.session import create_engine_from_config, make_session_factory
 
 SESSION_COOKIE = "recruit_session"
+
+
+class NotAuthenticated(Exception):
+    """Nobody is signed in.
+
+    Raised rather than returning a response so the handler can decide the shape:
+    a browser wants a redirect to the sign-in page, an API client wants 401.
+    A 401 carrying a Location header does nothing — browsers only follow
+    Location on a 3xx.
+    """
+
+
+class Forbidden(Exception):
+    """Signed in, but lacking the permission this route requires."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+        self.message = message
+
+
+def _wants_html(request: Request) -> bool:
+    return "text/html" in request.headers.get("accept", "")
 
 TEMPLATES = Path(__file__).resolve().parent / "templates"
 
@@ -71,8 +93,7 @@ def create_app(
         principal: Principal | None = Depends(current_principal),
     ) -> Principal:
         if principal is None:
-            raise HTTPException(status_code=401, detail="Not signed in",
-                                headers={"Location": "/login"})
+            raise NotAuthenticated
         return principal
 
     def require(permission: str):
@@ -85,7 +106,7 @@ def create_app(
             try:
                 principal.require(permission)
             except PermissionDenied as denied:
-                raise HTTPException(status_code=403, detail=str(denied)) from denied
+                raise Forbidden(str(denied)) from denied
             return principal
         return dependency
 
@@ -191,7 +212,7 @@ def create_app(
         try:
             principal.require(needed)
         except PermissionDenied as denied:
-            raise HTTPException(status_code=403, detail=str(denied)) from denied
+            raise Forbidden(str(denied)) from denied
         if state == "REJECTED" and not reason_code:
             raise HTTPException(status_code=400,
                                 detail="A rejection needs a reason code")
@@ -224,14 +245,17 @@ def create_app(
 
     # -- login -------------------------------------------------------------
     @app.get("/login", response_class=HTMLResponse)
-    def login_form(request: Request, error: str | None = None):
+    def login_form(request: Request, error: str | None = None,
+                   next: str | None = None):
         return templates.TemplateResponse(
             request, "login.html",
-            {"error": error, "requires_login": getattr(auth, "requires_login", True)},
+            {"error": error, "next": next,
+             "requires_login": getattr(auth, "requires_login", True)},
         )
 
     @app.post("/login")
     def login(email: str = Form(...), password: str = Form(...),
+              next: str = Form(default="/"),
               session: Session = Depends(get_session)):
         result = auth.login(email, password)
         if result is None:
@@ -247,7 +271,9 @@ def create_app(
         Repository(session).append_audit(
             event="auth.login", actor=principal.email, actor_role=principal.role,
         )
-        response = RedirectResponse(url="/", status_code=303)
+        # Only relative paths, or the ?next= parameter becomes an open redirect.
+        destination = next if next.startswith("/") and not next.startswith("//") else "/"
+        response = RedirectResponse(url=destination, status_code=303)
         response.set_cookie(
             SESSION_COOKIE, token,
             httponly=True,       # not readable by JavaScript
@@ -287,6 +313,24 @@ def create_app(
     @app.get("/health")
     def health():
         return {"status": "ok"}
+
+    # -- error handling ----------------------------------------------------
+    @app.exception_handler(NotAuthenticated)
+    def _not_authenticated(request: Request, _exc: NotAuthenticated):
+        if _wants_html(request):
+            # Preserve where they were headed so sign-in returns them there.
+            target = request.url.path
+            suffix = f"?next={target}" if target not in ("/", "/login") else ""
+            return RedirectResponse(url=f"/login{suffix}", status_code=303)
+        return JSONResponse({"detail": "Not signed in"}, status_code=401)
+
+    @app.exception_handler(Forbidden)
+    def _forbidden(request: Request, exc: Forbidden):
+        if _wants_html(request):
+            return templates.TemplateResponse(
+                request, "forbidden.html", {"message": exc.message}, status_code=403,
+            )
+        return JSONResponse({"detail": exc.message}, status_code=403)
 
     return app
 
