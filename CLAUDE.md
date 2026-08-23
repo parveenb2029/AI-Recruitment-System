@@ -437,3 +437,18 @@ Append here. Newest last.
   acceptance test, and it is recorded as open in the deferred register rather
   than assumed. 160 tests pass; ruff clean; branding, schema, render and bias
   self-test gates all green.
+  **Postscript, same day, found by the operator running the suite on Windows.**
+  Two defects the build environment could not have shown. (1)
+  `test_entrypoint_is_valid_shell` shells out to `bash -n`, which Windows does
+  not have — it now skips there rather than failing, because a machine with no
+  shell to check the file with proves nothing about the file, and CI on Linux
+  still checks it. (2) The `dev` extra declared `httpx`, but **Starlette 1.2
+  (May 2026) moved its TestClient to `httpx2`** and a current Starlette raises
+  `RuntimeError` on import without it. The build machine had Starlette 1.0 and
+  never saw it; the operator's had a newer one and could not collect
+  `test_web.py` or `test_auth.py` at all. Reproduced deliberately by upgrading
+  Starlette to 1.6 here, then verified the whole suite passes with `httpx2`
+  installed and `httpx` **removed**. Both are now declared. This is the third
+  time a packaging defect has been invisible to a machine that already had the
+  right libraries, and the second time hard rule 6 caught it — the rule is
+  earning its place.

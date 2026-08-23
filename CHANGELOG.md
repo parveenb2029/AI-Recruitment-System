@@ -108,6 +108,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   inspection — which is the argument for keeping that check in CI.
 - One more of them survived until Phase 5.2: `samples/Software_Engineer.json`
   still carried a `Contoso` EEO statement in the build tree.
+- The `dev` extra declared `httpx`, but Starlette 1.2 moved its TestClient to
+  `httpx2` and a current Starlette raises on import without it — so
+  `test_web.py` and `test_auth.py` could not even be collected on an up-to-date
+  machine. Both packages are now declared.
+- `test_entrypoint_is_valid_shell` failed on Windows, which has no `bash`. It
+  now skips there; CI on Linux still checks the entrypoint.
 - `ruff check .` was not actually clean. Adding CI surfaced 165 findings in the
   retired `tools/legacy/generate.py` and an unsorted import in
   `tests/test_packaging.py`. Legacy is now excluded from lint — it is preserved

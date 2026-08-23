@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import importlib
 import re
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -138,11 +139,18 @@ def test_config_path_honours_the_environment(tmp_path, monkeypatch):
 
 
 # -- the quickstart's own files ----------------------------------------------
+@pytest.mark.skipif(shutil.which("bash") is None,
+                    reason="no bash on this machine — Windows without Git Bash or WSL")
 def test_entrypoint_is_valid_shell():
     script = ROOT / "docker" / "entrypoint.sh"
     assert script.is_file()
     # bash -n parses without executing. A typo here does not surface until a
     # container refuses to start, which is the worst place to find it.
+    #
+    # Skipped rather than failed where bash is absent: the entrypoint only ever
+    # runs inside a Linux container, so a Windows machine having no shell to
+    # check it with says nothing about whether the file is correct. CI runs on
+    # Linux and does check it.
     assert subprocess.run(["bash", "-n", str(script)]).returncode == 0
 
 
