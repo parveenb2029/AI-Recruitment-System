@@ -8,6 +8,85 @@ It is a screening assistant. **It does not decide anything.** Every candidate-
 affecting outcome is approved, rejected, or escalated by a named person, and the
 record of that is append-only.
 
+![The review queue](docs/screenshots/queue.png)
+
+*Resumes the system wants a person to look at. It says how sure it is in words
+as well as numbers, and what specifically to check — the reviewers are
+recruiters and hiring managers, not engineers.*
+
+![Reviewing a candidate](docs/screenshots/review.png)
+
+*The resume on the left, what was read from it on the right. Click any line and
+the exact span it came from lights up in the source — evidence, not assertion.*
+
+![The activity log](docs/screenshots/activity-log.png)
+
+*Every action, in plain English, in a log that cannot be edited or deleted by
+anyone — including an administrator. The identifiers an auditor needs are one
+checkbox away, not thrown out.*
+
+---
+
+## What this took
+
+It started as 136 files of documentation with zero runnable code — a
+specification for a system nobody had built. It is now a working product with
+**216 passing tests**, and the parts that were genuinely hard:
+
+- **A model that cannot return a fit score.** Not "is instructed not to" — the
+  score fields are stripped from the tool schema before the call, so returning
+  one is structurally impossible and a future prompt edit cannot reintroduce it.
+  Components are judged separately, with evidence, and combined arithmetically in
+  application code from config weights. That is what makes a rejection
+  defensible if a candidate challenges it.
+- **A hallucination defence with numbers behind it.** Every quoted detail is
+  fuzzy-matched back against the source document. It caught an invented
+  "Principal Engineer at Google DeepMind" at 0.46 and a plausible-but-absent AWS
+  certification at 0.52 — while a genuine quote mangled by PDF line breaks still
+  scored 1.00, because the normalisation step exists so line-break noise never
+  produces a false accusation of fabrication.
+- **An audit log that is append-only in two layers**, verified against a real
+  Postgres 16 cluster: both `UPDATE` and `DELETE` rejected at the database. The
+  application layer alone falls to anyone with a database prompt; the database
+  layer alone vanishes if a migration is skipped.
+- **A bias harness that is itself under test.** A fake model with a known
+  injected penalty *must* be caught, or the suite fails — because a harness that
+  has never detected bias cannot support a claim of finding none. Findings are
+  attributed per component, so it reports "the domain-match score leaks the
+  university name", which is fixable, rather than "the total moved", which is not.
+- **Evidence you can click.** Selecting an extracted field highlights the exact
+  span of the source document it came from, by stored character offsets — not by
+  searching for the text in the browser, which highlights the wrong occurrence
+  whenever a phrase repeats. There is a test for exactly that.
+- **Content hashing over source bytes, not extracted text**, so a `pypdf`
+  upgrade cannot silently break idempotency and re-bill for every resume.
+- **Authorisation at the route, never in the template.** A test renders the
+  Approve button for a recruiter and then asserts that POSTing to the URL still
+  returns 403.
+- **A test that walks every import in `src/` and fails if it is undeclared.** It
+  found two real dependencies that were working only by accident.
+
+---
+
+## Two honest notes before you read further
+
+**Built with AI as a pair programmer, deliberately and in the open.** That is how
+I work and how I intend to keep working; the interesting question is not whether
+a tool was used but what judgement went in around it. Here, that meant cutting
+six of the eight specified workflows to protect a shippable core, refusing an
+architecture that would have produced an indefensible single fit score, insisting
+that nothing counted as finished until it had been run on a machine without the
+dependencies already installed — a rule that caught two real packaging defects —
+and pushing back when the first answer was wrong. `CLAUDE.md` records all of it,
+dated, including the decisions that had to be reversed. It is the most useful
+file in the repository.
+
+**Nothing here has been independently verified.** No accuracy figure has been
+measured, no DPIA has been performed, and the bias harness is one you run on
+yourself rather than an audit. The section below on using it with real
+candidates says exactly what is missing. Please do not put this in front of real
+applicants without reading it.
+
 ---
 
 ## Try it in ten minutes
@@ -276,6 +355,23 @@ asserts the OCR binaries are really in the image.
 of work that was deferred and why, and a dated decision log. Read it before
 changing anything — several of its rules exist because the alternative was tried
 and broke something.
+
+### If you are reading this to judge the engineering
+
+The parts worth your time, roughly in order:
+
+| Where | Why it is interesting |
+|-------|----------------------|
+| `CLAUDE.md` decision log | Every non-obvious decision, with the reasoning and the defects that forced it. Including the ones that were wrong first. |
+| `src/recruit/validate.py` | VR-03 — every quoted detail is fuzzy-matched back against the source document. The primary defence against a model inventing an employer. |
+| `src/recruit/match.py` | `model_facing_schema()` strips the score fields before the call, so the model is *structurally incapable* of returning an overall fit score. A future prompt edit cannot reintroduce one. |
+| `src/recruit/db/migrations.py` | The audit log is append-only in two layers — no mutating method in code, and a database trigger. Either alone is theatre. |
+| `src/recruit/bias/` | The harness is itself under test: a fake model with a known injected penalty must be caught, because a harness that has never found bias cannot support a claim of finding none. |
+| `src/recruit/web/humanize.py` | Plain-language console, with the identifiers hidden rather than removed — friendly reading and audit evidence are not in conflict, but only if you plan for both. |
+| `tests/test_intake_mail.py` | Filename handling for attachments from strangers: path escapes, nulls, Windows device names, trailing-dot collisions. |
+
+The tests are written to explain *why* a rule exists, not just to assert it.
+Several of them exist because a real defect got through first — those say so.
 
 ---
 

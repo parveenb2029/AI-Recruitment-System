@@ -195,7 +195,10 @@ artifact. Summary:
 | 4.3 | Confidence calibration | not started (blocked on 4.1) |
 | 5.1 | Auth, RBAC, compliance pack | **done** |
 | 5.2 | Docker + quickstart + CI | **done** — image build unverified, see below |
-| 6 | **Intake automation (WF-02)** — mail intake, landing zone, safety gate, screen on arrival | not started — `docs/intake_playbook.md` |
+| 6.0 | Scope amendment | **done** |
+| 6.1 | Capture real job-board emails | **operator's homework** — blocks 6.3 |
+| 6.2a | Mail reading: MIME, attachments, filenames, provenance | **done** |
+| 6.2b–6.12 | Gmail connection, per-source parsers, landing zone, safety gate, screening | not started — `docs/intake_playbook.md` |
 
 ---
 
@@ -539,3 +542,37 @@ Append here. Newest last.
   screened automatically against thresholds nobody measured. The human decision
   gate does not move — screening automatically is lawful, rejecting
   automatically is the part that is not.
+- **2026-08-23** — Phase 6, the standards-based half of intake.
+  `src/recruit/intake/mail.py`. Built while the operator gathers real job-board
+  captures, on a line worth keeping: **structure is standard, meaning is not.**
+  MIME says how an attachment is encoded, how a non-ASCII subject is wrapped and
+  what a Message-ID is for — the same for every sender alive, so it can be built
+  and tested against messages the standard library generates. Which paragraph of
+  a LinkedIn notification holds the applicant's name is a guess until one is in
+  hand, so no per-source parser exists yet and none should be written.
+  Four decisions. (1) **Provenance comes from the delivery address**, via
+  plus-addressing — `jobs+linkedin@` — not from the sender's display name, which
+  changes without notice while an address you published does not; an
+  unrecognised tag is returned as itself rather than invented. (2) **A missing
+  Message-ID falls back to the content hash.** It is unusual but legal, and the
+  alternatives are dropping an application or reprocessing it on every poll
+  forever. (3) **Filename sanitising assumes hostility**, because a MIME
+  filename is attacker-controlled text about to become a path on a Windows
+  machine: path segments, `..`, nulls and control characters, trailing dots
+  (Windows strips them, so `a.pdf.` and `a.pdf` collide), absurd lengths, and
+  the device names — `CON.pdf` is not a file, it is the console. The original is
+  kept beside the safe version, because if a filename turns out to be an attack
+  the sanitised one is not what belongs in the report. (4) **Magic bytes decide,
+  not Content-Type**, reusing the ingest table one step earlier so a renamed
+  executable never becomes a candidate at all.
+  Nothing raises on content: an unreadable message is quarantined with its raw
+  bytes kept, so one malformed mail cannot stop a batch of two hundred.
+  `LIKELY_LINK_ONLY` is called out separately from `NO_ATTACHMENTS` — it is the
+  case the playbook warns about, where a board sends "someone applied, click
+  here" behind a login, and it is a settings problem on the board rather than a
+  parsing failure. **A defect my own test caught**: the HTML flattener stripped
+  `<a>` tags before reading them, and in job-board mail the URL exists *only* in
+  the href while the visible text is "View application" — so link-only
+  detection, the whole point of the check, would have failed on exactly the
+  emails it was written for. Anchors are now unwrapped to `text (url)` first.
+  41 new tests; 216 pass; ruff clean. No new dependencies — all standard library.
