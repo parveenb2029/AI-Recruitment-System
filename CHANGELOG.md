@@ -66,6 +66,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   it cannot return an overall score. CLI: `python -m recruit.match <profile>
   <job> [--fake]`. Completes the WF-03 + WF-04 + review console vertical slice.
 
+- **Phase 4.2** — `src/recruit/bias/`: bias audit harness with five perturbation
+  dimensions, per-component attribution, four-fifths calculation, and a
+  publishable Markdown report. `python -m recruit.bias_audit [--fake]
+  [--self-test] [--fail-on-bias]`. The harness is self-tested against injected
+  bias.
+
 ### Fixed
 - Retention was a flat 7 years for every artifact in every jurisdiction, which
   conflicts with GDPR storage limitation for unsuccessful EU candidates. Now set

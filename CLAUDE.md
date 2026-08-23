@@ -11,7 +11,8 @@ out, with a human reviewing every decision that affects a candidate.
 
 **Current state (2026-08-22):** was a documentation blueprint; now has a working
 ingest → extract → validate → persist → review pipeline under `src/recruit/`, a
-config layer, a working web console, and 105 passing tests. **Phase 3 complete** —
+config layer, a working web console, a bias-audit harness, and 121 passing tests.
+**Phase 3 complete, 4.2 done** —
 the vertical slice runs end to end.
 The two scripts under `tools/legacy/` are the
 original document generators — they wrote the docs, they do not run the pipeline,
@@ -169,7 +170,9 @@ artifact. Summary:
 | 3.4 | Persist (Postgres, append-only audit) | **done** |
 | 3.5 | Review console | **done** |
 | 3.6 | Matching (WF-04) | **done** — vertical slice complete |
-| 4.1–4.3 | Golden set, bias harness, confidence calibration | not started |
+| 4.1 | Golden set | **deferred — see register** |
+| 4.2 | Bias harness | **done** |
+| 4.3 | Confidence calibration | not started (blocked on 4.1) |
 | 5.1–5.2 | Auth/RBAC/compliance pack, Docker + quickstart | not started |
 
 ---
@@ -185,7 +188,8 @@ lands. Do not assume anything here exists.
 | Virus scan on intake | Phase 3.1 | `Validation.md` §2 requires a clean scan before acceptance. Needs a scanner (ClamAV or a cloud API) that is not a Python dependency. Ingest records `scanned: false` rather than pretending. | Phase 5.2 |
 | OCR on the operator's machine | Phase 3.1 | The fallback is **verified working** — recovered 408 chars from an image-only PDF in the build environment. But Tesseract and Poppler are system binaries, not wheels, so it is untested on Windows. `pip install -e ".[ocr]"` covers the Python side only. | Phase 5.2 (Docker image bundles them) |
 | Cloud storage / ATS / auth adapters | Phase 2 | Only `local`, `csv`/`none`, and `single_user` are implemented. Others raise `NotImplementedError` with a clear message rather than failing obscurely. | Phase 5 |
-| Confidence calibration | Phase 2 | `confidence.calibrated: false` in config. Thresholds are round numbers, not measurements. | Phase 4.3 |
+| **Golden set (prompt 10)** | Phase 4.1 | **Deliberately deferred at the operator's request.** Needs 50–100 real resumes with human-labelled ground truth — that is the operator's evening, not a coding session. Everything in 4.3 is blocked on it, and no accuracy number can be quoted until it exists. | Next available |
+| Confidence calibration | Phase 2 | `confidence.calibrated: false` in config. Thresholds are round numbers, not measurements. Blocked on the golden set. | Phase 4.3 |
 | Doc de-duplication | — | Sibling docs still 84–92% identical. Not on the critical path to shipping. | Optional cleanup |
 
 **Rule:** when a phase cannot deliver something it promised, add a row here in the
@@ -337,3 +341,21 @@ Append here. Newest last.
   is flagged `auto_archive_eligible` and still routed to a human. `seed.py` now
   filters to resume-like documents; it was seeding a queue of five identical
   rows from reports and a job description. 105 tests pass; ruff clean.
+- **2026-08-22** — Phase 4.2. Bias audit harness, `src/recruit/bias/`. Five
+  perturbation dimensions: name, gender signal, university prestige, location,
+  graduation year. **The harness is itself under test**: `BiasedFakeLLM` injects
+  a known penalty and `test_detects_injected_bias` requires it to be caught — a
+  harness that has never found bias cannot support a claim of finding none.
+  `--self-test` runs that check from the CLI. Findings are attributed **per
+  component**, so a report says "`domain_match` leaks the university name",
+  which is fixable, rather than "the total moved", which is not.
+  `assert_substance_unchanged` refuses to report on an uncontrolled comparison:
+  if a perturbation altered a skill, the delta would be the change, not bias.
+  **A bug this caught in my own code**: the age dimension originally shifted
+  employment dates alongside graduation year, which turned 5 years of tenure
+  into 23 on a role with no end date — measuring experience, not age. It now
+  shifts education only, holds employment byte-identical, and the report
+  discloses the resulting graduation-gap confound rather than hiding it. The
+  report also states its own limits: one profile per group is a smoke test, not
+  a statistic, and this is **not** an LL144 compliance certificate — that
+  requires an independent third-party audit. 121 tests pass; ruff clean.
