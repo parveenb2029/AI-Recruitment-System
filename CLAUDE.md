@@ -10,8 +10,8 @@ An AI-assisted recruitment pipeline: resume in, ranked and evidence-cited shortl
 out, with a human reviewing every decision that affects a candidate.
 
 **Current state (2026-08-22):** was a documentation blueprint; now has a working
-ingest → extract → validate → persist pipeline under `src/recruit/`, a config
-layer, and 61 passing tests. Phases 0–3.4 complete. The two scripts under `tools/legacy/` are the
+ingest → extract → validate → persist → review pipeline under `src/recruit/`, a
+config layer, a working web console, and 78 passing tests. Phases 0–3.5 complete. The two scripts under `tools/legacy/` are the
 original document generators — they wrote the docs, they do not run the pipeline,
 and they must never be run again.
 
@@ -158,7 +158,8 @@ artifact. Summary:
 | 3.2 | Extract (structured output) | **done** |
 | 3.3 | Validate (incl. VR-03 evidence grounding) | **done** |
 | 3.4 | Persist (Postgres, append-only audit) | **done** |
-| 3.5–3.6 | Review console → match | not started |
+| 3.5 | Review console | **done** |
+| 3.6 | Matching (WF-04) | not started |
 | 4.1–4.3 | Golden set, bias harness, confidence calibration | not started |
 | 5.1–5.2 | Auth/RBAC/compliance pack, Docker + quickstart | not started |
 
@@ -278,3 +279,20 @@ Append here. Newest last.
   tests pass on both. Retention now queries per jurisdiction and consent extends
   the window rather than removing it. `docker-compose.yml` and
   `python -m recruit.db_init` added. 61 tests pass; ruff clean.
+- **2026-08-22** — Phase 3.5. Review console: FastAPI + Jinja, `src/recruit/web/`.
+  **Evidence click-through works and is verified in a real browser** — clicking an
+  extracted field highlights the exact span of the source document it came from.
+  To make that possible, `validate.locate_snippet` records `char_start`/`char_end`
+  during the VR-03 pass: the search has already happened there, so locating is
+  free, and reconstructing it later would search twice. **Highlighting uses
+  offsets, not client-side text search** — searching for the snippet in the
+  browser would highlight the wrong occurrence whenever a phrase repeats; there is
+  a test for exactly that. Source text is stored on the **envelope, not in
+  `results`** — `results` sets `additionalProperties: false`, so putting it there
+  fails schema validation on every run. Rejections require a reason code from a
+  fixed list rather than free text, so they can be counted and fed back into
+  prompt quality in Phase 4. Keyboard-first: A approve, R reject, E escalate,
+  J/Esc back. Resolving twice returns 409. Every decision writes to the
+  append-only audit log with reviewer identity, prompt version, and model id.
+  `python -m recruit.seed` populates a working queue so a new install never opens
+  on an empty screen. 78 tests pass; ruff clean.

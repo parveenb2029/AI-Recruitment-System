@@ -277,6 +277,49 @@ def _normalize(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip().lower()
 
 
+def locate_snippet(snippet: str, source_text: str) -> tuple[int, int] | None:
+    """Find a snippet's character span in the ORIGINAL source text.
+
+    Matching happens on normalized text (whitespace collapsed, lowercased), but
+    the console needs offsets into the real document. This builds a position map
+    while normalizing, so a normalized match can be translated back.
+
+    Returns None when the snippet cannot be located exactly.
+    """
+    needle = _normalize(snippet)
+    if not needle:
+        return None
+
+    positions: list[int] = []
+    characters: list[str] = []
+    previous_was_space = True
+    for index, char in enumerate(source_text):
+        if char.isspace():
+            if previous_was_space:
+                continue
+            characters.append(" ")
+            positions.append(index)
+            previous_was_space = True
+        else:
+            characters.append(char.lower())
+            positions.append(index)
+            previous_was_space = False
+
+    joined = "".join(characters)
+    haystack = joined.strip()
+    offset = 1 if joined.startswith(" ") else 0
+
+    found = haystack.find(needle)
+    if found == -1:
+        return None
+
+    start_index = found + offset
+    end_index = start_index + len(needle) - 1
+    if end_index >= len(positions):
+        return None
+    return positions[start_index], positions[end_index] + 1
+
+
 def validate_evidence(
     envelope: dict[str, Any],
     source_text: str,
@@ -325,6 +368,21 @@ def validate_evidence(
             score = fuzz.partial_ratio(needle, haystack) / 100.0
 
         item["match_score"] = round(score, 4)
+
+        # Record WHERE the snippet was found, in original-source offsets.
+        # The review console highlights this span so a reviewer can see the
+        # evidence in context with one click. Locating it is free here — VR-03
+        # has already done the search — and reconstructing it later would mean
+        # searching the document twice.
+        if score >= threshold:
+            span = locate_snippet(snippet, source_text)
+            if span is not None:
+                item["char_start"], item["char_end"] = span
+            else:
+                # A near-match may survive the threshold without mapping to an
+                # exact span. No highlight is better than a wrong one.
+                item.pop("char_start", None)
+                item.pop("char_end", None)
 
         if score < threshold:
             report.flags.append("POTENTIAL_HALLUCINATION")

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Review queue{% endblock %}
+{% block subtitle %}<span class="muted">{{ rows|length }} awaiting review &middot; riskiest first</span>{% endblock %}
+{% block head %}
+<style>
+table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--rule);border-radius:3px;overflow:hidden}
+th{text-align:left;font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);padding:10px 14px;border-bottom:1px solid var(--rule-strong)}
+td{padding:11px 14px;border-bottom:1px solid var(--rule);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr.row:hover td{background:var(--surface-2)}
+tr.row{cursor:pointer}
+.conf{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:600}
+.c-lo{color:var(--crit)} .c-mid{color:var(--warn)} .c-hi{color:var(--ok)}
+.bar-track{width:70px;height:5px;background:var(--surface-2);border-radius:3px;overflow:hidden;display:inline-block;vertical-align:middle;margin-left:8px}
+.bar-fill{height:100%;display:block}
+.empty{background:var(--surface);border:1px solid var(--rule);border-radius:3px;padding:48px;text-align:center;color:var(--muted)}
+.reasons{display:flex;gap:5px;flex-wrap:wrap}
+</style>
+{% endblock %}
+{% block content %}
+{% if not rows %}
+  <div class="empty">
+    <p style="margin:0 0 6px;color:var(--ink)">Queue is empty.</p>
+    <p style="margin:0;font-size:13px">Nothing is waiting on a human right now.</p>
+  </div>
+{% else %}
+<table>
+  <thead><tr>
+    <th>Candidate</th><th>Requisition</th><th>Confidence</th>
+    <th>Why it needs review</th><th>Run</th>
+  </tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr class="row" onclick="window.location='/review/{{ r.task.id }}'">
+      <td>
+        <strong>{{ r.name }}</strong>
+        {% if r.hallucination %}<span class="pill p-crit" style="margin-left:6px">unverified evidence</span>{% endif %}
+      </td>
+      <td class="mono muted">{{ r.requisition }}</td>
+      <td>
+        {% set c = r.confidence %}
+        <span class="conf {% if c < 0.5 %}c-lo{% elif c < threshold %}c-mid{% else %}c-hi{% endif %}">{{ '%.2f'|format(c) }}</span>
+        <span class="bar-track"><span class="bar-fill" style="width:{{ (c*100)|round|int }}%;background:{% if c < 0.5 %}var(--crit){% elif c < threshold %}var(--warn){% else %}var(--ok){% endif %}"></span></span>
+      </td>
+      <td><div class="reasons">
+        {% for reason in r.reasons %}<span class="pill p-warn">{{ reason.replace('_',' ')|lower }}</span>{% endfor %}
+        {% if not r.reasons %}<span class="muted">—</span>{% endif %}
+      </div></td>
+      <td class="mono muted" style="font-size:11px">{{ r.run.id }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+<p class="muted" style="font-size:12px;margin-top:12px">
+  Sorted by confidence ascending — the least trustworthy extractions surface first.
+</p>
+{% endif %}
+{% endblock %}

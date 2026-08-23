@@ -10,22 +10,18 @@ dependencies = [
     "jsonschema>=4.20",
     "pypdf>=4.0",
     "python-docx>=1.1",
-    "rapidfuzz>=3.9",
-    "sqlalchemy>=2.0",
-    "alembic>=1.13",
-    "psycopg[binary]>=3.1",
 ]
 
 [project.optional-dependencies]
 # OCR needs system binaries too: Tesseract and Poppler. See README.
 ocr = ["pytesseract>=0.3.10", "pdf2image>=1.17"]
 anthropic = ["anthropic>=0.40"]
+web = ["fastapi>=0.110", "uvicorn[standard]>=0.29", "jinja2>=3.1", "python-multipart>=0.0.9"]
 dev = ["pytest>=8.0", "ruff>=0.6"]
 
 [project.scripts]
 recruit-ingest = "recruit.ingest:main"
 recruit-extract = "recruit.extract:main"
-recruit-db-init = "recruit.db_init:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -44,3 +40,7 @@ src = ["src", "tools", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+# Depends() in an argument default is how FastAPI declares dependencies.
+"src/recruit/web/app.py" = ["B008"]

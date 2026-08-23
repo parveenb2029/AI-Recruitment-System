@@ -127,6 +127,10 @@ def extract(
         "review_reasons": review_reasons,
         "flags": [],
         "evidence": results.pop("evidence", []) if isinstance(results, dict) else [],
+        # Kept on the envelope so the review console can highlight evidence
+        # spans in context. It cannot go inside `results` — that object sets
+        # additionalProperties:false and would fail schema validation.
+        "source_text": document.text,
         "results": results,
     }
 

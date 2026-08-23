@@ -57,6 +57,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   content hash. Per-jurisdiction retention queries. `docker-compose.yml` and
   `python -m recruit.db_init`.
 
+- **Phase 3.5** — `src/recruit/web/`: review console with queue, detail view,
+  click-through evidence highlighting, keyboard shortcuts, and audited decisions.
+  `python -m recruit.seed` and `python -m recruit.web`.
+
 ### Fixed
 - Retention was a flat 7 years for every artifact in every jurisdiction, which
   conflicts with GDPR storage limitation for unsuccessful EU candidates. Now set

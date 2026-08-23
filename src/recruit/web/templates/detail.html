@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block title %}Review — {{ run.candidate_id }}{% endblock %}
+{% block subtitle %}
+<span class="muted">{{ run.candidate_id }} &middot; {{ run.requisition_id }}</span>
+<span class="pill {% if run.confidence_aggregate < threshold %}p-warn{% else %}p-ok{% endif %}">
+  confidence {{ '%.2f'|format(run.confidence_aggregate) }}</span>
+{% if 'POTENTIAL_HALLUCINATION' in (envelope.flags or []) %}
+<span class="pill p-crit">unverified evidence</span>{% endif %}
+{% endblock %}
+
+{% block head %}
+<style>
+.split{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+@media (max-width:1000px){.split{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--rule);border-radius:3px;overflow:hidden}
+.panel h2{font-size:11px;font-family:var(--mono);letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:0;padding:11px 14px;border-bottom:1px solid var(--rule)}
+.source{font-family:var(--mono);font-size:12.5px;line-height:1.75;white-space:pre-wrap;word-break:break-word;padding:14px;max-height:70vh;overflow-y:auto;margin:0}
+mark{background:var(--accent-soft);color:inherit;border-bottom:2px solid var(--accent);padding:1px 0;border-radius:2px;cursor:pointer}
+mark.on{background:var(--warn-soft);border-bottom-color:var(--warn);box-shadow:0 0 0 3px var(--warn-soft)}
+.fields{max-height:70vh;overflow-y:auto}
+.f{display:grid;grid-template-columns:130px 1fr auto;gap:10px;align-items:baseline;padding:8px 14px;border-bottom:1px solid var(--rule)}
+.f:last-child{border-bottom:none}
+.f.linked{cursor:pointer}
+.f.linked:hover{background:var(--surface-2)}
+.f.on{background:var(--warn-soft)}
+.f .k{font-size:11px;color:var(--muted);text-transform:capitalize}
+.f .v{word-break:break-word}
+.f .c{font-family:var(--mono);font-size:11px;font-variant-numeric:tabular-nums}
+.c-lo{color:var(--crit);font-weight:600} .c-mid{color:var(--warn)} .c-hi{color:var(--muted)}
+.f.low{border-left:3px solid var(--warn);padding-left:11px}
+.actions{position:sticky;bottom:0;background:var(--surface);border:1px solid var(--rule);border-radius:3px;padding:14px;margin-top:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.b-ok{background:var(--ok);border-color:var(--ok);color:#fff}
+.b-no{background:var(--crit);border-color:var(--crit);color:#fff}
+select,textarea{font:inherit;padding:6px 8px;border:1px solid var(--rule-strong);border-radius:3px;background:var(--surface);color:var(--ink)}
+.findings{padding:0 14px 12px}
+.finding{font-size:12.5px;padding:7px 0;border-bottom:1px dashed var(--rule)}
+.finding:last-child{border-bottom:none}
+.hint{font-size:11.5px;color:var(--muted);margin-left:auto;display:flex;gap:10px;align-items:center}
+dialog{border:1px solid var(--rule-strong);border-radius:4px;background:var(--surface);color:var(--ink);padding:18px;max-width:440px}
+dialog::backdrop{background:rgba(0,0,0,.4)}
+</style>
+{% endblock %}
+
+{% block content %}
+{% if validation.findings %}
+<div class="panel" style="margin-bottom:16px;border-left:3px solid var(--crit)">
+  <h2>Validation — {{ validation.findings|length }} finding(s)</h2>
+  <div class="findings">
+    {% for f in validation.findings[:8] %}
+    <div class="finding">
+      <span class="pill {% if f.severity=='CRITICAL' %}p-crit{% elif f.severity=='ERROR' %}p-crit{% else %}p-warn{% endif %}">{{ f.severity }}</span>
+      <strong class="mono" style="font-size:11px">{{ f.rule }}</strong>
+      {{ f.message }}
+      {% if f.pointer %}<span class="mono muted" style="font-size:11px">{{ f.pointer }}</span>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="split">
+  <div class="panel">
+    <h2>Source document{% if document %} — {{ document.filename }}{% endif %}</h2>
+    {% if has_source %}
+    <pre class="source" id="source">{% for s in segments %}{% if s.index is not none %}<mark id="ev-{{ s.index }}" data-index="{{ s.index }}" title="cited for {{ s.field }}">{{ s.text }}</mark>{% else %}{{ s.text }}{% endif %}{% endfor %}</pre>
+    {% else %}
+    <p class="muted" style="padding:14px;margin:0;font-size:13px">
+      Source text was not stored with this run, so evidence cannot be highlighted.
+      Re-run extraction to enable click-through.
+    </p>
+    {% endif %}
+  </div>
+
+  <div class="panel">
+    <h2>Extracted fields — click a linked row to locate it in the source</h2>
+    <div class="fields">
+      {% for f in fields %}
+      <div class="f {% if f.evidence_index is not none %}linked{% endif %} {% if f.confidence is not none and f.confidence < threshold %}low{% endif %}"
+           {% if f.evidence_index is not none %}data-index="{{ f.evidence_index }}"{% endif %}>
+        <span class="k">{{ f.label }}</span>
+        <span class="v">{{ f.value }}</span>
+        <span class="c {% if f.confidence is none %}c-hi{% elif f.confidence < 0.5 %}c-lo{% elif f.confidence < threshold %}c-mid{% else %}c-hi{% endif %}">
+          {% if f.confidence is not none %}{{ '%.2f'|format(f.confidence) }}{% else %}—{% endif %}
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<form class="actions" method="post" action="/review/{{ task.id }}/resolve" id="form">
+  <button type="submit" name="decision" value="approve" class="b-ok" id="approve">Approve <kbd>A</kbd></button>
+  <button type="button" class="b-no" id="reject-open">Reject <kbd>R</kbd></button>
+  <button type="submit" name="decision" value="escalate">Escalate <kbd>E</kbd></button>
+  <span class="hint"><kbd>J</kbd> next unreviewed &middot; <kbd>Esc</kbd> back to queue</span>
+</form>
+
+<dialog id="reject">
+  <form method="post" action="/review/{{ task.id }}/resolve">
+    <input type="hidden" name="decision" value="reject">
+    <p style="margin:0 0 10px;font-weight:600">Why is this being rejected?</p>
+    <p class="muted" style="font-size:12px;margin:0 0 12px">
+      Reason codes rather than free text, so rejections can be counted and fed
+      back into prompt quality.
+    </p>
+    <select name="reason_code" required style="width:100%;margin-bottom:10px">
+      <option value="">Select a reason…</option>
+      {% for code, label in reject_reasons %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
+    </select>
+    <textarea name="note" rows="3" placeholder="Optional note" style="width:100%;margin-bottom:12px"></textarea>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button type="button" id="reject-cancel">Cancel</button>
+      <button type="submit" class="b-no">Reject</button>
+    </div>
+  </form>
+</dialog>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var dialog = document.getElementById('reject');
+  document.getElementById('reject-open').addEventListener('click', function () { dialog.showModal(); });
+  document.getElementById('reject-cancel').addEventListener('click', function () { dialog.close(); });
+
+  // Two-way link between an extracted field and its span in the source.
+  // Offsets come from the server; searching for the text client-side would
+  // highlight the wrong occurrence whenever a phrase repeats.
+  function focusEvidence(index) {
+    document.querySelectorAll('mark.on, .f.on').forEach(function (el) { el.classList.remove('on'); });
+    var mark = document.getElementById('ev-' + index);
+    var row = document.querySelector('.f[data-index="' + index + '"]');
+    if (mark) { mark.classList.add('on'); mark.scrollIntoView({block: 'center', behavior: 'smooth'}); }
+    if (row) { row.classList.add('on'); }
+  }
+
+  document.querySelectorAll('.f.linked').forEach(function (row) {
+    row.addEventListener('click', function () { focusEvidence(row.dataset.index); });
+  });
+  document.querySelectorAll('mark[data-index]').forEach(function (mark) {
+    mark.addEventListener('click', function () { focusEvidence(mark.dataset.index); });
+  });
+
+  // Keyboard-first: a reviewer clearing 100 candidates should not need the mouse.
+  document.addEventListener('keydown', function (event) {
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+    var tag = (event.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+    if (dialog.open && event.key !== 'Escape') return;
+
+    switch (event.key.toLowerCase()) {
+      case 'a': event.preventDefault(); document.getElementById('approve').click(); break;
+      case 'r': event.preventDefault(); dialog.showModal(); break;
+      case 'e':
+        event.preventDefault();
+        var form = document.getElementById('form');
+        var hidden = document.createElement('input');
+        hidden.type = 'hidden'; hidden.name = 'decision'; hidden.value = 'escalate';
+        form.appendChild(hidden); form.submit();
+        break;
+      case 'j': case 'escape': window.location = '/'; break;
+    }
+  });
+})();
+</script>
+{% endblock %}
