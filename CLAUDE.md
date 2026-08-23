@@ -152,9 +152,29 @@ artifact. Summary:
 | 0 | Repo foundation | **done** |
 | 1 | WF-03 + WF-04 result schemas | **done** |
 | 2 | Config layer, de-branding, adapters | **done** |
-| 3.1–3.6 | Ingest → extract → validate → persist → review console → match | not started |
+| 3.1 | Ingest | **done** |
+| 3.2–3.6 | Extract → validate → persist → review console → match | not started |
 | 4.1–4.3 | Golden set, bias harness, confidence calibration | not started |
 | 5.1–5.2 | Auth/RBAC/compliance pack, Docker + quickstart | not started |
+
+---
+
+## Deferred work — not done, not forgotten
+
+Things a phase was supposed to deliver but did not. Each names why, and when it
+lands. Do not assume anything here exists.
+
+| Item | Owed by | Why deferred | Lands in |
+|------|---------|--------------|----------|
+| `LLMAdapter` implementation | Phase 2 | Protocol exists in `adapters/base.py`, but `registry.py` sets `llm=None`. Writing it is quick; *running* it needs a real API key on the operator's machine, and hard rule 6 forbids shipping untested code that calls a paid API. | Phase 3.2 |
+| Virus scan on intake | Phase 3.1 | `Validation.md` §2 requires a clean scan before acceptance. Needs a scanner (ClamAV or a cloud API) that is not a Python dependency. Ingest records `scanned: false` rather than pretending. | Phase 5.2 |
+| OCR on the operator's machine | Phase 3.1 | The fallback is **verified working** — recovered 408 chars from an image-only PDF in the build environment. But Tesseract and Poppler are system binaries, not wheels, so it is untested on Windows. `pip install -e ".[ocr]"` covers the Python side only. | Phase 5.2 (Docker image bundles them) |
+| Cloud storage / ATS / auth adapters | Phase 2 | Only `local`, `csv`/`none`, and `single_user` are implemented. Others raise `NotImplementedError` with a clear message rather than failing obscurely. | Phase 5 |
+| Confidence calibration | Phase 2 | `confidence.calibrated: false` in config. Thresholds are round numbers, not measurements. | Phase 4.3 |
+| Doc de-duplication | — | Sibling docs still 84–92% identical. Not on the critical path to shipping. | Optional cleanup |
+
+**Rule:** when a phase cannot deliver something it promised, add a row here in the
+same session. A gap that is written down is a plan; a gap that is not is a bug.
 
 ---
 
@@ -194,3 +214,15 @@ Append here. Newest last.
   rejected. Retention is now per jurisdiction, closing the GDPR conflict.
   Caveat recorded: `confidence.calibrated: false` — the thresholds are still round
   numbers, not measurements. Phase 4.3 fixes that.
+- **2026-08-22** — Phase 3.1. First real code. `src/recruit/ingest.py` validates
+  and extracts PDF/DOCX/TXT; `src/recruit/errors.py` gives every failure a reason
+  code and a recovery line, so nothing reaches a recruiter as a traceback (9/9
+  malformed documents fail cleanly). Magic-byte checking means a renamed
+  executable never reaches the parser. **The content hash is taken over the source
+  BYTES, not the extracted text** — extraction output varies with the pypdf
+  version, so hashing text would silently break idempotency on a library upgrade.
+  DOCX table cells are extracted, not dropped: resumes put skills and dates in
+  tables. `OCRUnavailable` is kept distinct from `EmptySource` — one is an
+  operator install problem, the other is a bad document, and conflating them would
+  send good scans to manual transcription while hiding a fixable issue. OCR
+  fallback verified end to end. `pyproject.toml` added; 14 tests pass.

@@ -21,7 +21,7 @@ This document provides a realistic example input for **Interview Feedback Proces
   "source_channel": "careers_portal",
   "priority": "standard",
   "submitted_at": "2026-08-03T09:15:00+05:30",
-  "submitter_email": "talent.acquisition@contoso.com",
+  "submitter_email": "talent.acquisition@{{org.email_domain}}",
   "schema_version": "1.0.0",
   "source_file": {
     "name": "Rahul_Sharma_Resume.pdf",

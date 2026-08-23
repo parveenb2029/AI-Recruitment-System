@@ -37,13 +37,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   interfaces under `src/recruit/adapters/`, `tools/render_docs.py`, and
   `tools/check_branding.py`.
 
+- **Phase 3.1** — `src/recruit/ingest.py` and `src/recruit/errors.py`: document
+  validation, text extraction for PDF/DOCX/TXT, OCR fallback, content hashing, and
+  a CLI (`python -m recruit.ingest <file>`). `pyproject.toml` and a 14-test suite.
+
 ### Fixed
 - Retention was a flat 7 years for every artifact in every jurisdiction, which
   conflicts with GDPR storage limitation for unsuccessful EU candidates. Now set
   per jurisdiction in organization config.
-- 51 references to a fictional company ("Contoso Ltd", `*@contoso.com`,
-  `recruitment.contoso.com`) across 27 files, plus `recruitment.example.com` and
+- 60 references to a fictional company ("Contoso Ltd", `*@contoso.com`,
+  `recruitment.contoso.com`) across 36 files, plus `recruitment.example.com` and
   `@company.com` in 14 more. All now resolve from config.
+  Nine of those files were found by `tools/check_branding.py` rather than by
+  inspection — which is the argument for keeping that check in CI.
 
 ### Notes
 - Project state at this commit: documentation blueprint, no application code.
@@ -62,6 +68,10 @@ Template for future entries:
 ### Changed
 ### Deprecated
 ### Removed
+- **Phase 3.1** — `src/recruit/ingest.py` and `src/recruit/errors.py`: document
+  validation, text extraction for PDF/DOCX/TXT, OCR fallback, content hashing, and
+  a CLI (`python -m recruit.ingest <file>`). `pyproject.toml` and a 14-test suite.
+
 ### Fixed
 ### Security
 -->

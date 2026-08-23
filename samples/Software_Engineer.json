@@ -1,6 +1,6 @@
 {
   "requisition_id": "REQ-2026-0142",
-  "title": "Software Engineer II \u2014 Cloud Platform",
+  "title": "Software Engineer II — Cloud Platform",
   "level": "Mid",
   "department": "Engineering",
   "location": "Bangalore, India (Hybrid)",
@@ -35,6 +35,6 @@
     "max": 2800000,
     "currency": "INR"
   },
-  "eeo_statement": "Contoso is an equal opportunity employer. All qualified applicants will receive consideration without regard to race, color, religion, sex, national origin, disability, or veteran status.",
+  "eeo_statement": "Example Ltd is an equal opportunity employer. All qualified applicants will receive consideration without regard to race, colour, religion, sex, sexual orientation, gender identity, national origin, disability, or veteran status. (Fixture value. At runtime this text comes from eeo_statement in config/organization.yaml.)",
   "status": "OPEN"
 }
