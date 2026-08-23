@@ -1,5 +1,7 @@
 # AI Recruitment System
 
+[![CI](https://github.com/parveenb2029/AI-Recruitment-System/actions/workflows/ci.yml/badge.svg)](https://github.com/parveenb2029/AI-Recruitment-System/actions/workflows/ci.yml)
+
 Read a resume, pull out the facts, score it against a job's requirements, and put
 the result in front of a human — with a quote from the document behind every
 claim, and a record of who decided what.

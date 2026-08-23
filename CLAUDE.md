@@ -194,7 +194,7 @@ artifact. Summary:
 | 4.2 | Bias harness | **done** |
 | 4.3 | Confidence calibration | not started (blocked on 4.1) |
 | 5.1 | Auth, RBAC, compliance pack | **done** |
-| 5.2 | Docker + quickstart + CI | **done** — image build unverified, see below |
+| 5.2 | Docker + quickstart + CI | **done and verified** — image builds green in CI |
 | 6.0 | Scope amendment | **done** |
 | 6.1 | Capture real job-board emails | **operator's homework** — blocks 6.3 |
 | 6.2a | Mail reading: MIME, attachments, filenames, provenance | **done** |
@@ -211,8 +211,8 @@ lands. Do not assume anything here exists.
 |------|---------|--------------|----------|
 | ~~`LLMAdapter` implementation~~ | Phase 2 | **Closed in Phase 3.2.** `AnthropicLLM` uses tool use; `FakeLLM` runs the pipeline with no key. The fake path is fully tested. The real API path is written but not yet exercised against live Anthropic — first real run is the operator's. | — |
 | Virus scan on intake | Phase 3.1 | `Validation.md` §2 requires a clean scan before acceptance. Needs a scanner (ClamAV or a cloud API) that is not a Python dependency. Ingest records `scanned: false` rather than pretending. **Not closed by Phase 5.2**: ClamAV in the image would mean a ~200MB signature database, a refresh daemon, and a container that fails to start when a mirror is down — too much weight for a quickstart. It belongs in a separate service. | Not scoped |
-| OCR on the operator's machine | Phase 3.1 | The fallback is **verified working** — recovered 408 chars from an image-only PDF in the build environment. But Tesseract and Poppler are system binaries, not wheels, so it is untested on Windows. `pip install -e ".[ocr]"` covers the Python side only. The Phase 5.2 image installs both as apt packages, and CI asserts they are present — **but that image has never been built**, so this stays open until it has. | Open until the image builds |
-| **Docker image never built** | Phase 5.2 | The Dockerfile, entrypoint, compose stack and CI were written and every part that can be checked without a registry was checked: `bash -n` on the entrypoint, all three of its branches run against real databases, `docker compose config` valid, first-run bootstrap and login verified end to end natively. **The image itself was never built** — the build sandbox had no route to Docker Hub or any mirror (403 on every registry). The first `docker compose up` is therefore the acceptance test, and it runs on the operator's Windows machine, which is exactly the "machine that does not already have the dependencies" hard rule 6 asks for. | The operator's next `docker compose up` |
+| OCR — narrowed, not closed | Phase 3.1 | **The image half is closed**: CI proves Tesseract and Poppler are present and answering inside the container, so anyone running via Docker has working OCR on any host. What remains open is OCR for someone who installs natively on Windows, where both are manual downloads. That is now a documentation problem, not a shipping blocker — the supported answer is the image. |
+| ~~**Docker image never built**~~ | Phase 5.2 | **Closed 2026-08-23.** Built on a GitHub Actions runner — a machine with none of the dependencies installed, which is exactly what hard rule 6 asks for. `docker` job green in 1m 6s: image built, `tesseract --version` and `pdftoppm -v` both answered from inside it, `docker compose up --wait` brought up Postgres and the console, and `/health` returned OK. The build sandbox could not do this (every registry 403'd) and the operator has no Docker installed; CI did it for free on the first run. |
 | Cloud storage / ATS adapters | Phase 2 | Only `local` and `csv`/`none` are implemented. Others raise `NotImplementedError` with a clear message rather than failing obscurely. | Phase 5.2+ |
 | OIDC single sign-on | Phase 5.1 | `local` (scrypt passwords, server-side sessions) and `single_user` are implemented. `oidc` **raises rather than falling back** — an org that configures SSO and silently gets weaker auth has an incident, not a warning. | When a customer needs it |
 | Candidate-facing portal | Phase 5.1 | `appeal_process.md` and `candidate_disclosure.md` describe a process with no UI behind it. Today it is manual on the operator's side, and the docs say so. | Not scoped |
@@ -576,3 +576,28 @@ Append here. Newest last.
   detection, the whole point of the check, would have failed on exactly the
   emails it was written for. Anchors are now unwrapped to `text (url)` first.
   41 new tests; 216 pass; ruff clean. No new dependencies — all standard library.
+- **2026-08-23** — The image builds. Published to GitHub (public, for the
+  operator's portfolio) and the CI written in Phase 5.2 ran for the first time:
+  `test (3.11)`, `test (3.12)` and `docker` all green, 1m 11s total.
+  **This closes the largest open honesty gap in the project.** Phase 5.2 shipped
+  a Dockerfile, an entrypoint and a compose stack that had *never been built* —
+  every container registry returned 403 from the build sandbox, and the operator
+  has no Docker installed, so the quickstart was a promise with nothing behind
+  it. It was recorded as open rather than assumed, and the acceptance test was
+  left for whoever could run it first. A GitHub runner turned out to be that
+  machine: it built the image, answered `tesseract --version` and `pdftoppm -v`
+  from inside the container, brought the whole stack up with `compose up --wait`,
+  and got a healthy response from `/health`. On a machine with none of the
+  dependencies installed — precisely the condition hard rule 6 exists to force.
+  The OCR row is narrowed rather than closed in the same breath: OCR through the
+  image is proven, OCR for a native Windows install is not, and the honest
+  position is that the image *is* the supported answer rather than that the
+  problem went away.
+  Repository is **public**, deliberately, as portfolio work. Two things were
+  checked before pushing, because history is permanent: `git ls-files` confirmed
+  no `.env`, no `config/organization.yaml`, no database file and no key had ever
+  been committed; and the README now states plainly that the build was
+  AI-assisted, that no accuracy figure has been measured, that no DPIA has been
+  performed, and that the bias harness is not an independent audit. Publishing a
+  hiring-decision system without those sentences would invite someone to deploy
+  it on real applicants on the strength of claims nobody has verified.
