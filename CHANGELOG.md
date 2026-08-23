@@ -61,6 +61,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   click-through evidence highlighting, keyboard shortcuts, and audited decisions.
   `python -m recruit.seed` and `python -m recruit.web`.
 
+- **Phase 3.6** — `src/recruit/match.py`: WF-04 matching with a decomposed,
+  config-weighted score. Computed fields are stripped from the model's schema so
+  it cannot return an overall score. CLI: `python -m recruit.match <profile>
+  <job> [--fake]`. Completes the WF-03 + WF-04 + review console vertical slice.
+
 ### Fixed
 - Retention was a flat 7 years for every artifact in every jurisdiction, which
   conflicts with GDPR storage limitation for unsuccessful EU candidates. Now set

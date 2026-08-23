@@ -1,0 +1,144 @@
+{
+  "components": [
+    {
+      "component_id": "must_have_coverage",
+      "label": "Must-have skill coverage",
+      "raw_score": 0.8,
+      "confidence": 0.93,
+      "rationale": "Python, REST APIs, Docker, Kubernetes evidenced in the current role. SQL evidenced only at TCS, two years ago.",
+      "evidence": [
+        {
+          "field": "python",
+          "snippet": "Designed REST microservices in Python serving 2M daily requests"
+        },
+        {
+          "field": "kubernetes",
+          "snippet": "Deployed services on Azure AKS with Docker/Kubernetes"
+        },
+        {
+          "field": "sql",
+          "snippet": "Developed SQL reporting modules for enterprise banking clients"
+        }
+      ]
+    },
+    {
+      "component_id": "experience_band",
+      "label": "Years in band",
+      "raw_score": 0.85,
+      "confidence": 0.88,
+      "rationale": "4.5 years against a 3-5 year band \u2014 comfortably inside, toward the upper end.",
+      "evidence": [
+        {
+          "field": "tenure",
+          "snippet": "Software engineer with 4.5 years of experience"
+        }
+      ]
+    },
+    {
+      "component_id": "domain_match",
+      "label": "Domain relevance",
+      "raw_score": 0.75,
+      "confidence": 0.55,
+      "rationale": "Cloud-native backend on Azure matches the platform focus. No evidence either way on mentoring or architecture collaboration.",
+      "evidence": [
+        {
+          "field": "domain",
+          "snippet": "backend services and cloud-native applications on Azure"
+        }
+      ]
+    }
+  ],
+  "must_have_requirements": [
+    {
+      "requirement_id": "MH-01",
+      "requirement": "Python",
+      "status": "MET",
+      "evidence": [
+        {
+          "field": "python",
+          "snippet": "Designed REST microservices in Python"
+        }
+      ]
+    },
+    {
+      "requirement_id": "MH-02",
+      "requirement": "REST APIs",
+      "status": "MET",
+      "evidence": [
+        {
+          "field": "rest",
+          "snippet": "Designed REST microservices in Python"
+        }
+      ]
+    },
+    {
+      "requirement_id": "MH-03",
+      "requirement": "Docker",
+      "status": "MET",
+      "evidence": [
+        {
+          "field": "docker",
+          "snippet": "Deployed services on Azure AKS with Docker/Kubernetes"
+        }
+      ]
+    },
+    {
+      "requirement_id": "MH-04",
+      "requirement": "Kubernetes",
+      "status": "MET",
+      "evidence": [
+        {
+          "field": "k8s",
+          "snippet": "Deployed services on Azure AKS with Docker/Kubernetes"
+        }
+      ]
+    },
+    {
+      "requirement_id": "MH-05",
+      "requirement": "SQL",
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "field": "sql",
+          "snippet": "Developed SQL reporting modules for enterprise banking clients"
+        }
+      ]
+    },
+    {
+      "requirement_id": "MH-06",
+      "requirement": "Mentoring junior engineers",
+      "status": "UNKNOWN",
+      "evidence": []
+    }
+  ],
+  "gaps": [
+    {
+      "requirement": "SQL",
+      "severity": "MINOR",
+      "note": "Evidenced at a previous employer, not in the current role."
+    },
+    {
+      "requirement": "Mentoring junior engineers",
+      "severity": "MINOR",
+      "note": "Not stated either way \u2014 ask at screen rather than assuming absence."
+    }
+  ],
+  "excluded_signals": [
+    "name",
+    "gender",
+    "age",
+    "nationality",
+    "university_prestige",
+    "address"
+  ],
+  "evidence": [
+    {
+      "field": "python",
+      "snippet": "Designed REST microservices in Python serving 2M daily requests"
+    },
+    {
+      "field": "kubernetes",
+      "snippet": "Deployed services on Azure AKS with Docker/Kubernetes"
+    }
+  ]
+}

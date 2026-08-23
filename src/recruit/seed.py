@@ -27,6 +27,26 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 FIXTURE = ROOT / "tests" / "fixtures" / "wf03_fake_results.json"
 
 
+RESUME_MARKERS = ("experience", "education", "skills")
+NON_RESUME_MARKERS = ("match report", "hiring report", "candidate summary",
+                      "job description", "responsibilities", "compensation band")
+
+
+def _looks_like_a_resume(path: Path) -> bool:
+    """Cheap heuristic so the demo queue holds resumes, not reports.
+
+    Not part of the pipeline — WF-02 does real document classification. This
+    only keeps `--seed` honest. Pass explicit paths to bypass it.
+    """
+    try:
+        text = load_document(path).text.lower()
+    except RecruitError:
+        return False
+    if any(marker in text for marker in NON_RESUME_MARKERS):
+        return False
+    return sum(marker in text for marker in RESUME_MARKERS) >= 2
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m recruit.seed", description=__doc__)
     parser.add_argument("--url", help="Override DATABASE_URL.")
@@ -34,9 +54,18 @@ def main(argv: list[str] | None = None) -> int:
                         help="Documents to seed. Defaults to samples/*.pdf")
     args = parser.parse_args(argv)
 
-    files = args.files or sorted((ROOT / "samples").glob("*.pdf"))
+    # Only actual resumes. samples/ also holds a job description, a match report,
+    # and two summary documents; feeding those through resume extraction seeds a
+    # queue of identical nonsense and makes a first impression worse than one
+    # honest row.
+    files = args.files or [
+        path for path in sorted((ROOT / "samples").glob("*.pdf"))
+        if _looks_like_a_resume(path)
+    ]
     if not files:
-        print("No sample documents found.", file=sys.stderr)
+        print("No resume-like documents found in samples/.", file=sys.stderr)
+        print("Pass paths explicitly to seed something else:", file=sys.stderr)
+        print("    python -m recruit.seed path/to/resume.pdf", file=sys.stderr)
         return 1
     if not FIXTURE.is_file():
         print(f"Missing fixture: {FIXTURE}", file=sys.stderr)

@@ -11,7 +11,8 @@ out, with a human reviewing every decision that affects a candidate.
 
 **Current state (2026-08-22):** was a documentation blueprint; now has a working
 ingest → extract → validate → persist → review pipeline under `src/recruit/`, a
-config layer, a working web console, and 82 passing tests. Phases 0–3.5 complete.
+config layer, a working web console, and 105 passing tests. **Phase 3 complete** —
+the vertical slice runs end to end.
 The two scripts under `tools/legacy/` are the
 original document generators — they wrote the docs, they do not run the pipeline,
 and they must never be run again.
@@ -167,7 +168,7 @@ artifact. Summary:
 | 3.3 | Validate (incl. VR-03 evidence grounding) | **done** |
 | 3.4 | Persist (Postgres, append-only audit) | **done** |
 | 3.5 | Review console | **done** |
-| 3.6 | Matching (WF-04) | not started |
+| 3.6 | Matching (WF-04) | **done** — vertical slice complete |
 | 4.1–4.3 | Golden set, bias harness, confidence calibration | not started |
 | 5.1–5.2 | Auth/RBAC/compliance pack, Docker + quickstart | not started |
 
@@ -317,3 +318,22 @@ Append here. Newest last.
   raises `DatabaseDriverMissing` naming both fixes instead of a bare import
   error. Postgres remains the production target and is one config line away.
   82 tests pass.
+- **2026-08-22** — Phase 3.6. Matching, `src/recruit/match.py`. The vertical
+  slice is complete. **Hard rule 3 is now enforced structurally rather than by
+  convention**: `model_facing_schema()` strips `overall_score`, `recommendation`,
+  `auto_archive_eligible`, `weighting`, `weight`, and `weighted_score` from the
+  tool schema before the call, so the model is *incapable* of returning a fit
+  score — a future prompt edit cannot reintroduce one. The model judges each
+  component 0..1 with evidence; `combine()` applies config weights in code.
+  Verified: `sum(raw x weight)` equals `overall_score` to six decimals, and
+  switching `default` (0.5/0.3/0.2) to `swe-ic` (0.6/0.2/0.2) moves the
+  must-have contribution 0.400 -> 0.480 while leaving every raw judgement
+  untouched. Four guard rails, all tested: weights must sum to 1.0 (BV-04); an
+  unweighted component is rejected; a **missing** component is rejected rather
+  than scored as zero (silently zeroing a dimension would change who gets
+  rejected, invisibly); `raw_score` must lie in 0..1. `weighting` provenance is
+  stamped per result so a historical match stays reproducible after the rubric
+  changes. BR-04 implemented as *eligibility*, not permission — a 0.20 candidate
+  is flagged `auto_archive_eligible` and still routed to a human. `seed.py` now
+  filters to resume-like documents; it was seeding a queue of five identical
+  rows from reports and a job description. 105 tests pass; ruff clean.

@@ -42,6 +42,7 @@ all = [
 [project.scripts]
 recruit-ingest = "recruit.ingest:main"
 recruit-extract = "recruit.extract:main"
+recruit-match = "recruit.match:main"
 recruit-db-init = "recruit.db_init:main"
 recruit-seed = "recruit.seed:main"
 recruit-web = "recruit.web.__main__:main"
