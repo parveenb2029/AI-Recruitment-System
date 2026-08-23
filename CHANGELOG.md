@@ -72,6 +72,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [--self-test] [--fail-on-bias]`. The harness is self-tested against injected
   bias.
 
+- **Phase 5.1** — `src/recruit/auth.py`, `src/recruit/db/auth_repository.py`:
+  scrypt password hashing, server-side sessions, four roles, route-level
+  authorization, login/logout/audit routes, and `python -m recruit.users`.
+  Compliance pack under `docs/compliance/`: DPIA, candidate disclosure, and
+  appeal process templates.
+
 ### Fixed
 - Retention was a flat 7 years for every artifact in every jurisdiction, which
   conflicts with GDPR storage limitation for unsuccessful EU candidates. Now set

@@ -272,11 +272,23 @@ adapters:
       export_dir: "./data/ats-export"
 
   auth:
-    provider: "single_user"    # single_user | local | oidc
+    # single_user — one hardcoded operator. Development only: it authenticates
+    #               nobody and every audit entry names the same person.
+    # local       — real accounts, scrypt-hashed passwords, server-side sessions.
+    #               Create the first one with:
+    #                   python -m recruit.users add you@example.com --role admin
+    # oidc        — enterprise SSO. Not implemented; configuring it raises rather
+    #               than silently falling back to something weaker.
+    provider: "single_user"
     single_user:
       email: "you@example.com"
       display_name: "Local Operator"
-      role: "admin"            # admin | recruiter | hiring_manager
+      role: "admin"            # admin | hiring_manager | recruiter | auditor
+    local:
+      session_hours: 12
+      # Set true when serving over HTTPS, so the session cookie is not sent
+      # over plain HTTP.
+      secure_cookie: false
 
   database:
     # SQLite by default: no server, no Docker, no driver to compile. Good for

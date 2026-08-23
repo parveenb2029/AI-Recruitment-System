@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Audit trail{% endblock %}
+{% block subtitle %}<span class="muted">{{ entries|length }} most recent entries &middot; append-only</span>{% endblock %}
+{% block head %}
+<style>
+table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--rule);border-radius:3px;font-size:13px}
+th{text-align:left;font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);padding:9px 12px;border-bottom:1px solid var(--rule-strong);white-space:nowrap}
+td{padding:8px 12px;border-bottom:1px solid var(--rule);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td.m{font-family:var(--mono);font-size:11.5px;white-space:nowrap}
+.wrap-table{overflow-x:auto}
+</style>
+{% endblock %}
+{% block content %}
+<div class="wrap-table">
+<table>
+  <thead><tr>
+    <th>When</th><th>Event</th><th>Actor</th><th>Role</th>
+    <th>Run</th><th>Prompt</th><th>Model</th><th>Detail</th>
+  </tr></thead>
+  <tbody>
+  {% for e in entries %}
+    <tr>
+      <td class="m muted">{{ e.occurred_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+      <td class="m">{{ e.event }}</td>
+      <td>{{ e.actor }}</td>
+      <td class="m muted">{{ e.actor_role or '—' }}</td>
+      <td class="m muted">{{ e.workflow_run_id or '—' }}</td>
+      <td class="m muted">{{ e.prompt_version or '—' }}</td>
+      <td class="m muted">{{ e.model_id or '—' }}</td>
+      <td class="m muted">{{ e.detail or '' }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="muted" style="font-size:12px;margin-top:12px">
+  This table cannot be edited or deleted — a database trigger rejects UPDATE and
+  DELETE (BR-05). PII in the detail column is masked (BR-06).
+</p>
+{% endblock %}

@@ -116,6 +116,8 @@ def build_context(config: dict[str, Any]) -> dict[str, str]:
         "contact.ta_ops_role": "contacts.ta_ops.role",
         "contact.hr_compliance": "contacts.hr_compliance.email",
         "contact.hr_compliance_role": "contacts.hr_compliance.role",
+        "contact.dpo": "contacts.data_protection_officer.email",
+        "contact.dpo_role": "contacts.data_protection_officer.role",
     }
     for alias, source in aliases.items():
         if source in context:

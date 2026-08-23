@@ -9,14 +9,17 @@ Project context for AI coding sessions. Read this first, every session.
 An AI-assisted recruitment pipeline: resume in, ranked and evidence-cited shortlist
 out, with a human reviewing every decision that affects a candidate.
 
-**Current state (2026-08-22):** was a documentation blueprint; now has a working
-ingest → extract → validate → persist → review pipeline under `src/recruit/`, a
-config layer, a working web console, a bias-audit harness, and 121 passing tests.
-**Phase 3 complete, 4.2 done** —
-the vertical slice runs end to end.
-The two scripts under `tools/legacy/` are the
-original document generators — they wrote the docs, they do not run the pipeline,
-and they must never be run again.
+**Current state (2026-08-22):** was a documentation blueprint; now a working
+product. `src/recruit/` runs ingest → extract → validate → persist → review →
+match, behind real authentication with role-based access control, with a
+bias-audit harness and a compliance pack. 143 tests pass.
+
+Phases 0–3 complete (the vertical slice runs end to end), plus 4.2 and 5.1.
+Remaining: the golden set (4.1), confidence calibration (4.3, blocked on it),
+and Docker packaging (5.2).
+
+The two scripts under `tools/legacy/` are the original document generators —
+they wrote the docs, they do not run the pipeline, and must never be run again.
 
 **Target: a working single-tenant product that ships**, not a specification for
 someone else to implement. Estimated 4–6 months of focused solo work.
@@ -57,6 +60,7 @@ Decided once. Do not re-choose these per session.
 ---
 
 ## Hard rules
+
 1. **Never run `tools/legacy/generate.py`.** It overwrites the entire tree from a
    hardcoded path. Docs are hand-maintained from the initial commit onward. The
    root-level `generate.py` and `_create_docx_samples.py` are inert stubs that
@@ -83,15 +87,15 @@ Decided once. Do not re-choose these per session.
    `tools/render_docs.py`. `{{candidate_id}}`, `{{source_content}}` and friends are
    **runtime** prompt variables the orchestrator fills per run — the renderer
    deliberately leaves them alone. Do not conflate them.
-
-
 9. **`pip install -e .` alone must run the pipeline.** Ingest, extract, validate,
    and persist work with no server, no Docker, and no compiled driver. Only the
    web console (`[web]`) and Postgres (`[postgres]`) are extras. Anything that
    breaks that is a defect, not a configuration choice.
 10. **Every module-level import must be declared in `pyproject.toml`.**
     `tests/test_packaging.py` enforces it. A dependency that is merely transitive
-    works until the package that pulled it in swaps it out.---
+    works until the package that pulled it in swaps it out.
+
+---
 
 ## Known defects in the existing docs — do not propagate
 
@@ -139,8 +143,11 @@ Buyers' legal teams ask for these before they ask about features:
   decisions. Needs disclosure and an appeal path.
 - **EU AI Act** — employment screening is classified high-risk.
 
-Build the bias harness early (Phase 4.2). It is ~half a day and it forces the
-scoring-decomposition decisions that are hardest to change later.
+Status: the bias harness exists (`recruit.bias_audit`, self-tested), and DPIA,
+candidate-disclosure, and appeal templates are in `docs/compliance/`. **All of
+those are internal or template-stage.** LL144 needs an *independent* audit, and
+no DPIA has actually been performed — `docs/compliance/README.md` lists what is
+still missing as prominently as what exists.
 
 ---
 
@@ -173,7 +180,8 @@ artifact. Summary:
 | 4.1 | Golden set | **deferred — see register** |
 | 4.2 | Bias harness | **done** |
 | 4.3 | Confidence calibration | not started (blocked on 4.1) |
-| 5.1–5.2 | Auth/RBAC/compliance pack, Docker + quickstart | not started |
+| 5.1 | Auth, RBAC, compliance pack | **done** |
+| 5.2 | Docker + quickstart | not started |
 
 ---
 
@@ -187,7 +195,9 @@ lands. Do not assume anything here exists.
 | ~~`LLMAdapter` implementation~~ | Phase 2 | **Closed in Phase 3.2.** `AnthropicLLM` uses tool use; `FakeLLM` runs the pipeline with no key. The fake path is fully tested. The real API path is written but not yet exercised against live Anthropic — first real run is the operator's. | — |
 | Virus scan on intake | Phase 3.1 | `Validation.md` §2 requires a clean scan before acceptance. Needs a scanner (ClamAV or a cloud API) that is not a Python dependency. Ingest records `scanned: false` rather than pretending. | Phase 5.2 |
 | OCR on the operator's machine | Phase 3.1 | The fallback is **verified working** — recovered 408 chars from an image-only PDF in the build environment. But Tesseract and Poppler are system binaries, not wheels, so it is untested on Windows. `pip install -e ".[ocr]"` covers the Python side only. | Phase 5.2 (Docker image bundles them) |
-| Cloud storage / ATS / auth adapters | Phase 2 | Only `local`, `csv`/`none`, and `single_user` are implemented. Others raise `NotImplementedError` with a clear message rather than failing obscurely. | Phase 5 |
+| Cloud storage / ATS adapters | Phase 2 | Only `local` and `csv`/`none` are implemented. Others raise `NotImplementedError` with a clear message rather than failing obscurely. | Phase 5.2+ |
+| OIDC single sign-on | Phase 5.1 | `local` (scrypt passwords, server-side sessions) and `single_user` are implemented. `oidc` **raises rather than falling back** — an org that configures SSO and silently gets weaker auth has an incident, not a warning. | When a customer needs it |
+| Candidate-facing portal | Phase 5.1 | `appeal_process.md` and `candidate_disclosure.md` describe a process with no UI behind it. Today it is manual on the operator's side, and the docs say so. | Not scoped |
 | **Golden set (prompt 10)** | Phase 4.1 | **Deliberately deferred at the operator's request.** Needs 50–100 real resumes with human-labelled ground truth — that is the operator's evening, not a coding session. Everything in 4.3 is blocked on it, and no accuracy number can be quoted until it exists. | Next available |
 | Confidence calibration | Phase 2 | `confidence.calibrated: false` in config. Thresholds are round numbers, not measurements. Blocked on the golden set. | Phase 4.3 |
 | Doc de-duplication | — | Sibling docs still 84–92% identical. Not on the critical path to shipping. | Optional cleanup |
@@ -359,3 +369,22 @@ Append here. Newest last.
   report also states its own limits: one profile per group is a smoke test, not
   a statistic, and this is **not** an LL144 compliance certificate — that
   requires an independent third-party audit. 121 tests pass; ruff clean.
+- **2026-08-22** — Phase 5.1. Real authentication and RBAC. Passwords use
+  `hashlib.scrypt` from the **standard library** rather than bcrypt or argon2 —
+  both are compiled dependencies and hard rule 9 requires installing without a
+  compiler. Session tokens are stored **hashed**: a database dump then yields no
+  usable cookies, and SHA-256 is correct there rather than scrypt because a
+  256-bit random token has nothing to brute-force. **Authorization is enforced at
+  the route, never in the template** — `require(permission)` is a FastAPI
+  dependency, and there is a test that renders the Approve button for a recruiter
+  and then asserts POSTing to the URL still returns 403. Four roles from the RACI
+  tables; a recruiter may review and escalate but **not** approve, which is the
+  §15 human-in-the-loop boundary expressed in code. Login failures are
+  indistinguishable from unknown users (the adapter hashes a dummy password on
+  the miss so timing does not leak account existence), and deactivating a user
+  revokes live sessions rather than waiting for cookie expiry. Compliance pack
+  added under `docs/compliance/`: DPIA, candidate disclosure, and appeal process,
+  every one marked a template with `[ORGANIZATION TO COMPLETE]` blanks — shipping
+  unreviewed legal text is worse than shipping none, because someone relies on
+  it. The README lists what the system does **not** do as prominently as what it
+  does. 143 tests pass; ruff clean.

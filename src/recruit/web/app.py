@@ -6,14 +6,19 @@ import json
 from pathlib import Path
 from typing import Any
 
-from fastapi import Depends, FastAPI, Form, HTTPException, Request
+from fastapi import Cookie, Depends, FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..db.models import Document, ReviewTask, WorkflowRun
+from ..auth import PERMISSIONS, PermissionDenied, Principal
+from ..db.auth_repository import build_auth
+from ..db.models import AuditLog, Document, ReviewTask, WorkflowRun
 from ..db.repository import Repository
 from ..db.session import create_engine_from_config, make_session_factory
+
+SESSION_COOKIE = "recruit_session"
 
 TEMPLATES = Path(__file__).resolve().parent / "templates"
 
@@ -34,6 +39,7 @@ def create_app(
     session_factory: Any | None = None,
     config: Any | None = None,
     current_user: Any | None = None,
+    auth_adapter: Any | None = None,
 ) -> FastAPI:
     app = FastAPI(title="Review Console", docs_url=None, redoc_url=None)
     templates = Jinja2Templates(directory=str(TEMPLATES))
@@ -52,16 +58,36 @@ def create_app(
         finally:
             session.close()
 
-    def actor() -> tuple[str, str]:
-        """Identity for the audit log. Single-user until Phase 5.1 adds real auth."""
+    auth = auth_adapter or build_auth(config, session_factory)
+
+    def current_principal(
+        recruit_session: str | None = Cookie(default=None, alias=SESSION_COOKIE),
+    ) -> Principal | None:
         if current_user is not None:
-            return current_user.email, current_user.role
-        if config is not None:
-            return (
-                config.get("adapters.auth.single_user.email", "operator@localhost"),
-                config.get("adapters.auth.single_user.role", "admin"),
-            )
-        return "operator@localhost", "admin"
+            return current_user
+        return auth.principal_for_token(recruit_session or "")
+
+    def require_login(
+        principal: Principal | None = Depends(current_principal),
+    ) -> Principal:
+        if principal is None:
+            raise HTTPException(status_code=401, detail="Not signed in",
+                                headers={"Location": "/login"})
+        return principal
+
+    def require(permission: str):
+        """Route-level authorization.
+
+        Hiding a button in a template is a courtesy; anyone can still type the
+        URL. Every protected route declares the permission it needs here.
+        """
+        def dependency(principal: Principal = Depends(require_login)) -> Principal:
+            try:
+                principal.require(permission)
+            except PermissionDenied as denied:
+                raise HTTPException(status_code=403, detail=str(denied)) from denied
+            return principal
+        return dependency
 
     def highlight_threshold() -> float:
         if config is not None:
@@ -70,7 +96,8 @@ def create_app(
 
     # -- queue -------------------------------------------------------------
     @app.get("/", response_class=HTMLResponse)
-    def queue(request: Request, session: Session = Depends(get_session)):
+    def queue(request: Request, session: Session = Depends(get_session),
+              principal: Principal = Depends(require("review"))):
         repo = Repository(session)
         tasks = repo.review_queue(limit=100)
         rows = []
@@ -90,12 +117,14 @@ def create_app(
             })
         return templates.TemplateResponse(
             request, "queue.html",
-            {"rows": rows, "threshold": highlight_threshold()},
+            {"rows": rows, "threshold": highlight_threshold(), "principal": principal},
         )
 
     # -- detail ------------------------------------------------------------
     @app.get("/review/{task_id}", response_class=HTMLResponse)
-    def detail(task_id: int, request: Request, session: Session = Depends(get_session)):
+    def detail(task_id: int, request: Request,
+               session: Session = Depends(get_session),
+               principal: Principal = Depends(require("review"))):
         task = session.get(ReviewTask, task_id)
         if task is None:
             raise HTTPException(status_code=404, detail="No such review task")
@@ -128,6 +157,7 @@ def create_app(
                 "threshold": highlight_threshold(),
                 "reject_reasons": REJECT_REASONS,
                 "has_source": bool(source_text),
+                "principal": principal,
             },
         )
 
@@ -140,6 +170,7 @@ def create_app(
         note: str = Form(default=""),
         edits: str = Form(default=""),
         session: Session = Depends(get_session),
+        principal: Principal = Depends(require_login),
     ):
         task = session.get(ReviewTask, task_id)
         if task is None:
@@ -151,6 +182,16 @@ def create_app(
                  "escalate": "ESCALATED"}.get(decision)
         if state is None:
             raise HTTPException(status_code=400, detail=f"Unknown decision: {decision}")
+
+        # A recruiter may escalate but not decide. That boundary is the
+        # human-in-the-loop rule from Workflow_Spec.md section 15, and it lives
+        # here rather than in the template.
+        needed = {"APPROVED": "approve", "REJECTED": "reject",
+                  "ESCALATED": "escalate"}[state]
+        try:
+            principal.require(needed)
+        except PermissionDenied as denied:
+            raise HTTPException(status_code=403, detail=str(denied)) from denied
         if state == "REJECTED" and not reason_code:
             raise HTTPException(status_code=400,
                                 detail="A rejection needs a reason code")
@@ -165,7 +206,7 @@ def create_app(
 
         repo = Repository(session)
         run = session.get(WorkflowRun, task.workflow_run_id)
-        email, role = actor()
+        email, role = principal.email, principal.role
 
         repo.resolve_review(task, reviewer=email, state=state,
                             reason_code=reason_code or None, edits=parsed_edits)
@@ -180,6 +221,68 @@ def create_app(
                     "edited_fields": sorted(parsed_edits) if parsed_edits else []},
         )
         return RedirectResponse(url="/", status_code=303)
+
+    # -- login -------------------------------------------------------------
+    @app.get("/login", response_class=HTMLResponse)
+    def login_form(request: Request, error: str | None = None):
+        return templates.TemplateResponse(
+            request, "login.html",
+            {"error": error, "requires_login": getattr(auth, "requires_login", True)},
+        )
+
+    @app.post("/login")
+    def login(email: str = Form(...), password: str = Form(...),
+              session: Session = Depends(get_session)):
+        result = auth.login(email, password)
+        if result is None:
+            # One message for every failure. Distinguishing "no such user" from
+            # "wrong password" hands an attacker a list of valid accounts.
+            Repository(session).append_audit(
+                event="auth.login_failed", actor=email or "(blank)",
+                actor_role=None, detail={"reason": "invalid_credentials"},
+            )
+            return RedirectResponse(url="/login?error=1", status_code=303)
+
+        principal, token = result
+        Repository(session).append_audit(
+            event="auth.login", actor=principal.email, actor_role=principal.role,
+        )
+        response = RedirectResponse(url="/", status_code=303)
+        response.set_cookie(
+            SESSION_COOKIE, token,
+            httponly=True,       # not readable by JavaScript
+            samesite="lax",      # not sent on cross-site POSTs
+            secure=bool(config.get("adapters.auth.local.secure_cookie", False))
+            if config else False,
+            max_age=60 * 60 * 12,
+        )
+        return response
+
+    @app.post("/logout")
+    def logout(recruit_session: str | None = Cookie(default=None, alias=SESSION_COOKIE),
+               session: Session = Depends(get_session)):
+        principal = auth.principal_for_token(recruit_session or "")
+        if principal is not None:
+            Repository(session).append_audit(
+                event="auth.logout", actor=principal.email, actor_role=principal.role,
+            )
+        auth.logout(recruit_session or "")
+        response = RedirectResponse(url="/login", status_code=303)
+        response.delete_cookie(SESSION_COOKIE)
+        return response
+
+    # -- audit trail (compliance) -----------------------------------------
+    @app.get("/audit", response_class=HTMLResponse)
+    def audit_log(request: Request, session: Session = Depends(get_session),
+                  principal: Principal = Depends(require("read_audit")),
+                  limit: int = 200):
+        entries = list(session.scalars(
+            select(AuditLog).order_by(AuditLog.occurred_at.desc(),
+                                      AuditLog.id.desc()).limit(min(limit, 1000))
+        ))
+        return templates.TemplateResponse(
+            request, "audit.html", {"entries": entries, "principal": principal},
+        )
 
     @app.get("/health")
     def health():
