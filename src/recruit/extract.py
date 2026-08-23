@@ -13,9 +13,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -23,13 +22,14 @@ from . import ingest
 from .adapters.llm import FakeLLM, build_llm
 from .errors import RecruitError
 from .prompts import WorkflowPrompt, load_results_schema
+from .validate import validate as run_validation
 
 WORKFLOW_ID = "WF-03"
 ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    return datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 def _run_id(content_sha256: str) -> str:
@@ -141,6 +141,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--candidate-id", default="CAN-88421")
     parser.add_argument("--out", type=Path, help="Write the envelope to this file.")
     parser.add_argument("--quiet", action="store_true", help="Suppress the summary.")
+    parser.add_argument("--no-validate", action="store_true",
+                        help="Skip validation. Rarely what you want.")
     args = parser.parse_args(argv)
 
     try:
@@ -171,6 +173,20 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Unexpected failure: {error}", file=sys.stderr)
         return 1
 
+    report = None
+    if not args.no_validate:
+        source_text = ingest.load(args.file).text
+        report = run_validation(envelope, source_text=source_text, config=config)
+        if not report.is_valid:
+            envelope["human_review_required"] = True
+            envelope["status"] = "PARTIAL"
+            for finding in report.blocking:
+                reason = f"VALIDATION_{finding.rule.replace('-', '_')}"
+                if reason not in envelope["review_reasons"]:
+                    envelope["review_reasons"].append(reason)
+        envelope["flags"] = sorted(set(envelope.get("flags", []) + report.flags))
+        envelope["validation"] = report.summary()
+
     text = json.dumps(envelope, indent=2)
     if args.out:
         args.out.parent.mkdir(parents=True, exist_ok=True)
@@ -194,6 +210,13 @@ def main(argv: list[str] | None = None) -> int:
         low = envelope["results"].get("low_confidence_fields") or []
         if low:
             print(f"  flagged       {', '.join(low)}")
+        if report is not None:
+            print(f"\n  validation    {'PASS' if report.is_valid else 'FAIL'}"
+                  f"   {len(report.findings)} finding(s)")
+            if "POTENTIAL_HALLUCINATION" in report.flags:
+                print("  ** POTENTIAL_HALLUCINATION — evidence not found in source **")
+            for finding in report.sorted_findings()[:6]:
+                print(f"    {finding}")
         if args.out:
             print(f"\n  written to    {args.out}")
     elif not args.out:

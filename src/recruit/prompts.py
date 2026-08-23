@@ -67,7 +67,7 @@ class WorkflowPrompt:
         self.version = version.group(1)
 
     @classmethod
-    def load(cls, workflow_id: str, root: Path | None = None) -> "WorkflowPrompt":
+    def load(cls, workflow_id: str, root: Path | None = None) -> WorkflowPrompt:
         base = root or ROOT
         folders = {
             "WF-01": "01_Job_Descriptions",

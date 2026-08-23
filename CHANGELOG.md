@@ -47,6 +47,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `FakeLLM` that runs the pipeline without an API key. CLI:
   `python -m recruit.extract <file> [--fake]`.
 
+- **Phase 3.3** — `src/recruit/validate.py`: four-layer validation (schema, data,
+  business rules, evidence grounding). VR-03 fuzzy-matches every evidence snippet
+  against the source document and flags `POTENTIAL_HALLUCINATION` below 0.8.
+  Wired into the extract CLI.
+
 ### Fixed
 - Retention was a flat 7 years for every artifact in every jurisdiction, which
   conflicts with GDPR storage limitation for unsuccessful EU candidates. Now set

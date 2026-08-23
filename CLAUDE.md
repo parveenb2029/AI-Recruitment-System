@@ -10,8 +10,8 @@ An AI-assisted recruitment pipeline: resume in, ranked and evidence-cited shortl
 out, with a human reviewing every decision that affects a candidate.
 
 **Current state (2026-08-22):** was a documentation blueprint; now has a working
-ingest → extract pipeline under `src/recruit/`, a config layer, and 29 passing
-tests. Phases 0–3.2 complete. The two scripts under `tools/legacy/` are the
+ingest → extract → validate pipeline under `src/recruit/`, a config layer, and 45
+passing tests. Phases 0–3.3 complete. The two scripts under `tools/legacy/` are the
 original document generators — they wrote the docs, they do not run the pipeline,
 and they must never be run again.
 
@@ -46,7 +46,7 @@ Decided once. Do not re-choose these per session.
 | API | FastAPI |
 | Database | Postgres 16, SQLAlchemy 2.x, Alembic migrations from day one |
 | Documents | `pypdf`, `python-docx`, Tesseract OCR fallback |
-| Evidence check | `rapidfuzz` |
+| Evidence check | `rapidfuzz` — **implemented**, `validate.validate_evidence` |
 | LLM | Adapter interface; **native structured-output / tool-calling mode only** |
 | Review console | FastAPI + Jinja + HTMX (server-rendered; React only if highlighting demands it) |
 | Packaging | Docker Compose |
@@ -156,7 +156,8 @@ artifact. Summary:
 | 2 | Config layer, de-branding, adapters | **done** |
 | 3.1 | Ingest | **done** |
 | 3.2 | Extract (structured output) | **done** |
-| 3.3–3.6 | Validate → persist → review console → match | not started |
+| 3.3 | Validate (incl. VR-03 evidence grounding) | **done** |
+| 3.4–3.6 | Persist → review console → match | not started |
 | 4.1–4.3 | Golden set, bias harness, confidence calibration | not started |
 | 5.1–5.2 | Auth/RBAC/compliance pack, Docker + quickstart | not started |
 
@@ -244,3 +245,18 @@ Append here. Newest last.
   **overwrite** whatever the model claims, since the model must not be trusted to
   report them; an unfilled `{{runtime_var}}` raises rather than reaching the model
   as literal text. 29 tests pass.
+- **2026-08-22** — Phase 3.3. Validation, four layers, in `src/recruit/validate.py`.
+  **VR-03 is live and is the most important code in the project**: every evidence
+  snippet is fuzzy-matched back against the source text; below 0.8 similarity the
+  run is flagged `POTENTIAL_HALLUCINATION` and blocked. Demonstrated catching a
+  fabricated "Principal Engineer at Google DeepMind" (0.46) and a plausible-but-
+  absent "AWS Certified Solutions Architect Professional" (0.52), while a verbatim
+  quote with mangled PDF whitespace still scores 1.00 — the normalization step
+  exists precisely so line-break noise does not produce false accusations of
+  fabrication. Returns a `ValidationReport`, never a bool: a reviewer needs rule,
+  severity, and JSON Pointer, not "invalid". Severity ladder is
+  CRITICAL > ERROR > WARNING > INFO; only the first two block. `VR-01` is CRITICAL
+  when confidence is below threshold while `human_review_required` is false —
+  that combination is the one that would put an unreviewed extraction in front of
+  a hiring manager. Validation is wired into the extract CLI and downgrades status
+  to PARTIAL on any blocking finding. 45 tests pass; ruff clean.

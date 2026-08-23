@@ -13,7 +13,6 @@ Run it in CI. Exit code 0 = clean, 1 = hardcoded values found.
 from __future__ import annotations
 
 import re
-import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -40,7 +39,8 @@ SCAN_SUFFIXES = {".md", ".json", ".py", ".yaml", ".yml", ".html", ".jinja"}
 BANNED = [
     (re.compile(r"\bContoso\b", re.I), "Fictional company name — use {{org.legal_name}}"),
     (re.compile(r"\bcontoso\.com\b", re.I), "Fictional domain — use {{org.email_domain}}"),
-    (re.compile(r"recruitment\.example\.com"), "Hardcoded schema host — use {{org.schema_base_url}}"),
+    (re.compile(r"recruitment\.example\.com"),
+     "Hardcoded schema host — use {{org.schema_base_url}}"),
     (re.compile(r"@company\.com\b"), "Placeholder domain — use {{org.email_domain}}"),
 ]
 
