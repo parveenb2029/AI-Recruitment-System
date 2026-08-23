@@ -78,6 +78,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Compliance pack under `docs/compliance/`: DPIA, candidate disclosure, and
   appeal process templates.
 
+- **Phase 5.2** — packaging and quickstart. `Dockerfile` (bundling Tesseract and
+  Poppler so OCR needs no manual install), `docker/entrypoint.sh`, a full
+  `docker-compose.yml` bringing up Postgres and the console with one command,
+  `.dockerignore`, and `.github/workflows/ci.yml` running lint, tests on Python
+  3.11 and 3.12, the branding check, schema validation, the bias self-test, and
+  a Docker build that asserts the OCR binaries are really in the image.
+- `python -m recruit.bootstrap` — idempotent first-run setup: schema, plus an
+  administrator whose password is **generated and printed once** rather than
+  defaulted. Safe to run on every container start.
+- `RECRUIT_CONFIG` environment variable overrides the organization config path,
+  so a container can point at a mounted file without editing the image.
+- README rewritten for someone who has never seen the project: a ten-minute
+  quickstart that needs no API key, and a "before you use this on real
+  candidates" section stating plainly that the bias harness is not an LL144
+  audit, that no DPIA has been performed, and that no accuracy figure exists.
+
 ### Fixed
 - Retention was a flat 7 years for every artifact in every jurisdiction, which
   conflicts with GDPR storage limitation for unsuccessful EU candidates. Now set
@@ -90,6 +106,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `@company.com` in 14 more. All now resolve from config.
   Nine of those files were found by `tools/check_branding.py` rather than by
   inspection — which is the argument for keeping that check in CI.
+- One more of them survived until Phase 5.2: `samples/Software_Engineer.json`
+  still carried a `Contoso` EEO statement in the build tree.
+- `ruff check .` was not actually clean. Adding CI surfaced 165 findings in the
+  retired `tools/legacy/generate.py` and an unsorted import in
+  `tests/test_packaging.py`. Legacy is now excluded from lint — it is preserved
+  byte-identical on purpose — and the import is fixed.
 
 ### Notes
 - The project began as a documentation blueprint with no application code.

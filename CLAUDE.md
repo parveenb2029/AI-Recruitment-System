@@ -9,14 +9,14 @@ Project context for AI coding sessions. Read this first, every session.
 An AI-assisted recruitment pipeline: resume in, ranked and evidence-cited shortlist
 out, with a human reviewing every decision that affects a candidate.
 
-**Current state (2026-08-22):** was a documentation blueprint; now a working
+**Current state (2026-08-23):** was a documentation blueprint; now a working
 product. `src/recruit/` runs ingest → extract → validate → persist → review →
 match, behind real authentication with role-based access control, with a
-bias-audit harness and a compliance pack. 143 tests pass.
+bias-audit harness, a compliance pack, and a one-command Docker quickstart.
+160 tests pass.
 
-Phases 0–3 complete (the vertical slice runs end to end), plus 4.2 and 5.1.
-Remaining: the golden set (4.1), confidence calibration (4.3, blocked on it),
-and Docker packaging (5.2).
+Phases 0–3 complete (the vertical slice runs end to end), plus 4.2, 5.1 and 5.2.
+Remaining: the golden set (4.1) and confidence calibration (4.3, blocked on it).
 
 The two scripts under `tools/legacy/` are the original document generators —
 they wrote the docs, they do not run the pipeline, and must never be run again.
@@ -181,7 +181,7 @@ artifact. Summary:
 | 4.2 | Bias harness | **done** |
 | 4.3 | Confidence calibration | not started (blocked on 4.1) |
 | 5.1 | Auth, RBAC, compliance pack | **done** |
-| 5.2 | Docker + quickstart | not started |
+| 5.2 | Docker + quickstart + CI | **done** — image build unverified, see below |
 
 ---
 
@@ -193,13 +193,15 @@ lands. Do not assume anything here exists.
 | Item | Owed by | Why deferred | Lands in |
 |------|---------|--------------|----------|
 | ~~`LLMAdapter` implementation~~ | Phase 2 | **Closed in Phase 3.2.** `AnthropicLLM` uses tool use; `FakeLLM` runs the pipeline with no key. The fake path is fully tested. The real API path is written but not yet exercised against live Anthropic — first real run is the operator's. | — |
-| Virus scan on intake | Phase 3.1 | `Validation.md` §2 requires a clean scan before acceptance. Needs a scanner (ClamAV or a cloud API) that is not a Python dependency. Ingest records `scanned: false` rather than pretending. | Phase 5.2 |
-| OCR on the operator's machine | Phase 3.1 | The fallback is **verified working** — recovered 408 chars from an image-only PDF in the build environment. But Tesseract and Poppler are system binaries, not wheels, so it is untested on Windows. `pip install -e ".[ocr]"` covers the Python side only. | Phase 5.2 (Docker image bundles them) |
+| Virus scan on intake | Phase 3.1 | `Validation.md` §2 requires a clean scan before acceptance. Needs a scanner (ClamAV or a cloud API) that is not a Python dependency. Ingest records `scanned: false` rather than pretending. **Not closed by Phase 5.2**: ClamAV in the image would mean a ~200MB signature database, a refresh daemon, and a container that fails to start when a mirror is down — too much weight for a quickstart. It belongs in a separate service. | Not scoped |
+| OCR on the operator's machine | Phase 3.1 | The fallback is **verified working** — recovered 408 chars from an image-only PDF in the build environment. But Tesseract and Poppler are system binaries, not wheels, so it is untested on Windows. `pip install -e ".[ocr]"` covers the Python side only. The Phase 5.2 image installs both as apt packages, and CI asserts they are present — **but that image has never been built**, so this stays open until it has. | Open until the image builds |
+| **Docker image never built** | Phase 5.2 | The Dockerfile, entrypoint, compose stack and CI were written and every part that can be checked without a registry was checked: `bash -n` on the entrypoint, all three of its branches run against real databases, `docker compose config` valid, first-run bootstrap and login verified end to end natively. **The image itself was never built** — the build sandbox had no route to Docker Hub or any mirror (403 on every registry). The first `docker compose up` is therefore the acceptance test, and it runs on the operator's Windows machine, which is exactly the "machine that does not already have the dependencies" hard rule 6 asks for. | The operator's next `docker compose up` |
 | Cloud storage / ATS adapters | Phase 2 | Only `local` and `csv`/`none` are implemented. Others raise `NotImplementedError` with a clear message rather than failing obscurely. | Phase 5.2+ |
 | OIDC single sign-on | Phase 5.1 | `local` (scrypt passwords, server-side sessions) and `single_user` are implemented. `oidc` **raises rather than falling back** — an org that configures SSO and silently gets weaker auth has an incident, not a warning. | When a customer needs it |
 | Candidate-facing portal | Phase 5.1 | `appeal_process.md` and `candidate_disclosure.md` describe a process with no UI behind it. Today it is manual on the operator's side, and the docs say so. | Not scoped |
 | **Golden set (prompt 10)** | Phase 4.1 | **Deliberately deferred at the operator's request.** Needs 50–100 real resumes with human-labelled ground truth — that is the operator's evening, not a coding session. Everything in 4.3 is blocked on it, and no accuracy number can be quoted until it exists. | Next available |
 | Confidence calibration | Phase 2 | `confidence.calibrated: false` in config. Thresholds are round numbers, not measurements. Blocked on the golden set. | Phase 4.3 |
+| **Plain-language console copy** | Phase 3.5 / 5.1 | **The console is written for engineers and its users are not.** The audit page column heads are `Run`, `Prompt`, `Model`; the rows carry `workflow_run_id`, `prompt_version`, `model_id`, event names like `auth.login_failed`, and a raw Python dict in `detail`. Reviewers will be recruiters and hiring managers — the operator puts it at 99% non-technical. Needs: human sentences per event ("Parveen signed in" / "Sign-in failed — wrong password"), plain column heads, `detail` rendered as fields rather than a dict, and the same pass over the queue, detail, login and error screens. The jargon must survive *somewhere* — LL144 and GDPR Art. 22 evidence depends on run and model identity — so this is a presentation layer over the existing columns, not a schema change: keep the technical values behind a "Show technical details" toggle or an export. | Next available |
 | Doc de-duplication | — | Sibling docs still 84–92% identical. Not on the critical path to shipping. | Optional cleanup |
 
 **Rule:** when a phase cannot deliver something it promised, add a row here in the
@@ -388,3 +390,50 @@ Append here. Newest last.
   unreviewed legal text is worse than shipping none, because someone relies on
   it. The README lists what the system does **not** do as prominently as what it
   does. 143 tests pass; ruff clean.
+- **2026-08-23** — Phase 5.2. Packaging, quickstart, and CI. The goal of this
+  phase is a stranger reaching a working review queue in ten minutes with no
+  API key, no database, and no Python — so `docker compose up` seeds the queue
+  with the **fake** model and the console runs without a credential of any kind.
+  Three decisions worth keeping. (1) **The first-run password is generated, not
+  defaulted.** `recruit.bootstrap` runs on every container start, creates an
+  administrator only when none exists, and prints a `secrets.token_urlsafe`
+  password once; an operator-supplied `RECRUIT_ADMIN_PASSWORD` is used but never
+  echoed. Shipping `admin/admin` is how products end up indexed by Shodan, and a
+  credential nobody was given cannot be leaked. Idempotency is tested directly:
+  a second start must not create a second account **and must not rotate the
+  first password**, because a restart that silently invalidated the only
+  administrator would be indistinguishable from a break-in. (2) **Both published
+  ports bind to `127.0.0.1`**, and a test parses `docker-compose.yml` and fails
+  if that ever changes — the console shows candidate data and, under the shipped
+  example config, has no login at all, so exposing it must be a decision someone
+  makes rather than a default they inherit. (3) `RECRUIT_CONFIG` now overrides
+  the config path, resolved per call rather than at import, so a container can
+  point at a mounted file and the entrypoint can fall back to the example when
+  `config/` is mounted read-only instead of refusing to start. **A defect caught
+  while writing the `.dockerignore`**: excluding the numbered workflow folders
+  looked obviously right — they are documentation — but `prompts.WorkflowPrompt`
+  loads the live system and user prompts from `03_Extracted_Data/Prompt.md` at
+  run time, so the image would have shipped a working console whose first real
+  extraction raised `PromptError`. There is now a test asserting no `0N_` pattern
+  appears in `.dockerignore`. Also found by adding CI rather than by reading:
+  `ruff check .` was **not** clean — `tools/legacy/generate.py` contributed 165
+  findings, and `tests/test_packaging.py` had an unsorted import. Legacy is now
+  excluded from lint (it is preserved byte-identical on purpose; linting it means
+  either permanent red or edits that break the checksum guarantee) and the import
+  is fixed. The README was rewritten for someone who has never seen the project:
+  what it does, what it does not, the ten-minute path, and a "before you use this
+  on real candidates" section that says plainly that the bias harness is not an
+  LL144 audit, that no DPIA has been performed, and that **no accuracy figure
+  exists**. Two drift repairs while syncing: `samples/Software_Engineer.json`
+  still carried a `Contoso` EEO statement in the build tree (the operator's copy
+  was correct and won), and `adapters/local.py` / `config.py` were behind on
+  their side. **The image was never built** — every container registry returned
+  403 from the build sandbox — so what was verified is everything short of that:
+  `bash -n` on the entrypoint, all three of its branches exercised against real
+  databases including the read-only-config fallback as an unprivileged user,
+  `docker compose config`, and the full first-run sequence run natively end to
+  end (bootstrap → generated password → seed → console → sign in → queue showing
+  the seeded candidate). The first `docker compose up` on Windows is the
+  acceptance test, and it is recorded as open in the deferred register rather
+  than assumed. 160 tests pass; ruff clean; branding, schema, render and bias
+  self-test gates all green.

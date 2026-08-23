@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import csv
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -67,7 +67,7 @@ class CSVAts:
 
     def _append(self, candidate_id: str, event: str, detail: str) -> None:
         row = [
-            datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            datetime.now(UTC).isoformat(timespec="seconds"),
             candidate_id,
             event,
             detail,

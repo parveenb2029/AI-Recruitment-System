@@ -1,10 +1,14 @@
-# Local development stack.
+# The whole stack, one command.
 #
-#     docker compose up -d
-#     python -m recruit.db_init
+#     docker compose up
 #
-# Postgres only for now. The app service and worker arrive in Phase 5.2, when
-# the image also bundles Tesseract and Poppler so OCR works on any platform.
+# Then open http://localhost:8000. First start builds the image and takes a few
+# minutes; after that it is seconds. Nothing here needs an API key: the sample
+# queue is produced by the fake model. Add ANTHROPIC_API_KEY to .env when you
+# want to process a real resume.
+#
+# To stop:            docker compose down
+# To stop and erase:  docker compose down -v      (deletes the database volume)
 
 services:
   postgres:
@@ -13,13 +17,15 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: recruit
-      POSTGRES_PASSWORD: recruit
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-recruit}
       POSTGRES_DB: recruit
       # Deterministic collation, so ORDER BY on candidate names does not change
       # between a developer laptop and production.
       POSTGRES_INITDB_ARGS: "--locale=C --encoding=UTF8"
     ports:
-      - "5432:5432"
+      # Bound to localhost, not 0.0.0.0. The default password is "recruit"; on a
+      # machine with a public IP, `5432:5432` would publish it to the internet.
+      - "127.0.0.1:5432:5432"
     volumes:
       - recruit-pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -28,5 +34,43 @@ services:
       timeout: 5s
       retries: 10
 
+  console:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: recruit-console:local
+    container_name: recruit-console
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg://recruit:${POSTGRES_PASSWORD:-recruit}@postgres:5432/recruit
+      # Optional. Absent, the console still runs — only extraction and matching
+      # need a model, and the seeded queue is produced by the fake one.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # Used only when adapters.auth.provider is "local" AND no account exists
+      # yet. The password is generated and printed once — see the logs.
+      RECRUIT_ADMIN_EMAIL: ${RECRUIT_ADMIN_EMAIL:-admin@localhost}
+      RECRUIT_ADMIN_PASSWORD: ${RECRUIT_ADMIN_PASSWORD:-}
+      # Set to 0 once there is real work in the queue.
+      RECRUIT_SEED: ${RECRUIT_SEED:-1}
+    ports:
+      # localhost only. This console shows candidate data and, in the shipped
+      # example config, has no login at all. Changing this to "8000:8000" puts
+      # it on every network this machine is attached to. Read the auth section
+      # of the README first.
+      - "127.0.0.1:8000:8000"
+    volumes:
+      # Your organization config, read-write so first run can create it and so
+      # edits do not need a rebuild.
+      - ./config:/app/config
+      # Sample resumes for the demo queue. Read-only: nothing should write here.
+      - ./samples:/app/samples:ro
+      # Uploaded documents. A named volume rather than a bind mount, so file
+      # ownership works the same on Windows, macOS, and Linux.
+      - recruit-data:/app/data
+
 volumes:
   recruit-pgdata:
+  recruit-data:

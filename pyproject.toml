@@ -46,6 +46,7 @@ recruit-match = "recruit.match:main"
 recruit-bias-audit = "recruit.bias_audit:main"
 recruit-users = "recruit.users:main"
 recruit-db-init = "recruit.db_init:main"
+recruit-bootstrap = "recruit.bootstrap:main"
 recruit-seed = "recruit.seed:main"
 recruit-web = "recruit.web.__main__:main"
 
@@ -63,6 +64,12 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 96
 src = ["src", "tools", "tests"]
+# The retired document generators are preserved byte-identical and
+# checksum-verified — that is the whole point of keeping them. Linting them
+# would leave `ruff check .` permanently red, or tempt someone into edits that
+# break the guarantee they exist to provide. They are never imported and never
+# run (hard rule 1).
+exclude = ["tools/legacy"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]

@@ -20,6 +20,14 @@ from .db.auth_repository import LocalAuth
 from .db.migrations import create_all
 from .db.session import create_engine_from_config, make_session_factory
 
+# Not a substitute for a real password policy — just the handful that turn up
+# first in any wordlist. A length check alone lets "12345678" through.
+OBVIOUS_PASSWORDS = {
+    "12345678", "123456789", "1234567890", "password", "password1",
+    "qwertyui", "abc12345", "11111111", "00000000", "iloveyou",
+    "letmein1", "admin123", "welcome1", "passw0rd",
+}
+
 
 def _adapter(url: str | None):
     config = None
@@ -48,7 +56,17 @@ def _prompt_password() -> str:
         raise AuthError("Cancelled. No account was created.") from None
     if first != second:
         raise AuthError("Passwords do not match. No account was created.")
+    _warn_if_obvious(first)
     return first
+
+
+def _warn_if_obvious(password: str) -> None:
+    if password.lower() in OBVIOUS_PASSWORDS:
+        raise AuthError(
+            "That password is one of the most-guessed in existence.\n"
+            "  Hashing cannot save a password a wordlist already contains.\n"
+            "  Pick something else — a short phrase works well."
+        )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -65,6 +83,13 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("list", help="List accounts.")
 
+    pwd = sub.add_parser("set-password",
+                         help="Change a password and revoke live sessions.")
+    pwd.add_argument("email")
+    pwd.add_argument("--password", help="For scripted setup only. Prefer the prompt.")
+    pwd.add_argument("--keep-sessions", action="store_true",
+                     help="Do not revoke existing sessions.")
+
     role = sub.add_parser("set-role", help="Change an account's role.")
     role.add_argument("email")
     role.add_argument("role", choices=ROLES)
@@ -80,6 +105,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "add":
             password = args.password or _prompt_password()
+            if args.password:
+                _warn_if_obvious(args.password)
             name = args.name or args.email.split("@")[0].replace(".", " ").title()
             principal = auth.create_user(args.email, password,
                                          display_name=name, role=args.role)
@@ -95,6 +122,16 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  {'EMAIL':<34} {'ROLE':<16} NAME")
             for person in people:
                 print(f"  {person.email:<34} {person.role:<16} {person.display_name}")
+
+        elif args.command == "set-password":
+            password = args.password or _prompt_password()
+            if args.password:
+                _warn_if_obvious(args.password)
+            auth.set_password(args.email, password,
+                              revoke_sessions=not args.keep_sessions)
+            print(f"  password changed for {args.email}")
+            if not args.keep_sessions:
+                print("  live sessions revoked; sign in again")
 
         elif args.command == "set-role":
             auth.set_role(args.email, args.role)

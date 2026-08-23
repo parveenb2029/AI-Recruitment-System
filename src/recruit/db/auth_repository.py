@@ -10,7 +10,6 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session as DbSession
 
 from ..auth import (
     AuthError,
@@ -53,6 +52,25 @@ class LocalAuth:
             db.refresh(user)
             return Principal(email=user.email, display_name=user.display_name,
                              role=user.role, user_id=user.id)
+
+    def set_password(self, email: str, password: str, *,
+                     revoke_sessions: bool = True) -> None:
+        """Change a password.
+
+        Revokes live sessions by default. A password change usually means the
+        old one is suspect, and leaving sessions open would defeat the point.
+        """
+        with self._session_factory() as db:
+            user = db.scalar(select(User).where(User.email == email.strip().lower()))
+            if user is None:
+                raise AuthError(f"No user with email {email}")
+            user.password_hash = hash_password(password)
+            if revoke_sessions:
+                now = datetime.now(UTC)
+                for session in user.sessions:
+                    if session.revoked_at is None:
+                        session.revoked_at = now
+            db.commit()
 
     def set_role(self, email: str, role: str) -> None:
         with self._session_factory() as db:

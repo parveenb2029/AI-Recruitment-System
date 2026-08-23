@@ -13,8 +13,23 @@ from typing import Any
 import yaml
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-CONFIG_PATH = ROOT / "config" / "organization.yaml"
 EXAMPLE_PATH = ROOT / "config" / "organization.example.yaml"
+
+
+def _default_config_path() -> Path:
+    """Where to look for the organization config.
+
+    `RECRUIT_CONFIG` wins, so a container can point at a mounted file without
+    editing anything inside the image. Resolved per call rather than at import,
+    because tests and the Docker entrypoint set it after this module loads.
+    """
+    override = os.environ.get("RECRUIT_CONFIG")
+    if override:
+        return Path(override)
+    return ROOT / "config" / "organization.yaml"
+
+
+CONFIG_PATH = ROOT / "config" / "organization.yaml"
 
 WEIGHT_TOLERANCE = 0.001
 
@@ -32,12 +47,12 @@ class OrganizationConfig:
 
     # -- loading ----------------------------------------------------------
     @classmethod
-    def load(cls, path: Path | None = None) -> "OrganizationConfig":
-        target = path or CONFIG_PATH
+    def load(cls, path: Path | None = None) -> OrganizationConfig:
+        target = path or _default_config_path()
         if not target.is_file():
             if EXAMPLE_PATH.is_file():
                 raise ConfigError(
-                    f"No {target.name} found in config/.\n"
+                    f"No organization config at {target}.\n"
                     "Create one with:\n"
                     "    cp config/organization.example.yaml config/organization.yaml"
                 )

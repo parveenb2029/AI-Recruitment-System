@@ -50,6 +50,10 @@ def _looks_like_a_resume(path: Path) -> bool:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m recruit.seed", description=__doc__)
     parser.add_argument("--url", help="Override DATABASE_URL.")
+    parser.add_argument("--force", action="store_true",
+                        help="Re-run documents already processed, and reopen their "
+                             "review tasks. For replaying the demo after you have "
+                             "cleared the queue.")
     parser.add_argument("files", nargs="*", type=Path,
                         help="Documents to seed. Defaults to samples/*.pdf")
     args = parser.parse_args(argv)
@@ -120,13 +124,27 @@ def main(argv: list[str] | None = None) -> int:
                 ocr_used=document.ocr_used, candidate_id=candidate_id,
             )
             run, created = repo.save_run(envelope, document_id=stored.id,
-                                         validation=report.summary())
-            if not created:
-                print(f"  exists   {path.name} -> {run.id}")
+                                         validation=report.summary(),
+                                         force=args.force)
+            if not created and not args.force:
+                print(f"  exists   {path.name} -> {run.id}  "
+                      f"(use --force to re-run)")
                 skipped += 1
                 continue
             if envelope.get("human_review_required"):
-                repo.create_review_task(run)
+                if args.force:
+                    # Reopen rather than pile up duplicates: a replayed demo
+                    # should look like the first run, not the fourth.
+                    for existing in run.review_tasks:
+                        existing.state = "PENDING"
+                        existing.reviewer = None
+                        existing.reason_code = None
+                        existing.resolved_at = None
+                    if not run.review_tasks:
+                        repo.create_review_task(run)
+                    session.flush()
+                else:
+                    repo.create_review_task(run)
             repo.append_audit(
                 event="extraction.completed", actor="seed", actor_role="service",
                 workflow_run_id=run.id, workflow_id=run.workflow_id,
@@ -135,7 +153,8 @@ def main(argv: list[str] | None = None) -> int:
                 content_sha256=document.content_sha256,
                 detail={"seeded": True, "email": personal.get("email")},
             )
-            print(f"  seeded   {path.name} -> {run.id}  "
+            verb = "reopened" if args.force and not created else "seeded  "
+            print(f"  {verb} {path.name} -> {run.id}  "
                   f"confidence {envelope['confidence_aggregate']}")
             seeded += 1
 

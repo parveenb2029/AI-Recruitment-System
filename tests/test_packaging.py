@@ -136,6 +136,7 @@ def test_default_database_url_needs_no_server_or_driver():
 def test_missing_driver_explains_how_to_fix_it():
     """A bare ModuleNotFoundError tells an operator nothing actionable."""
     import pytest
+
     from recruit.db.session import DatabaseDriverMissing, create_engine_from_config
 
     try:
@@ -150,3 +151,4 @@ def test_missing_driver_explains_how_to_fix_it():
     assert "postgres" in message.lower()
     assert "pip install" in message
     assert "sqlite" in message.lower()
+
