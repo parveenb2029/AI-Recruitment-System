@@ -32,9 +32,9 @@ body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);f
 a{color:var(--accent)}
 header.bar{background:var(--surface);border-bottom:1px solid var(--rule);padding:12px 20px;display:flex;align-items:baseline;gap:16px;position:sticky;top:0;z-index:5}
 header.bar h1{font-size:15px;margin:0;font-weight:600;letter-spacing:-.01em}
-header.bar .who{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--muted)}
+header.bar .who{margin-left:auto;font-size:12px;color:var(--muted)}
 main{padding:20px}
-.pill{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:2px;white-space:nowrap}
+.pill{font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:3px;white-space:nowrap}
 .p-crit{background:var(--crit-soft);color:var(--crit)}
 .p-warn{background:var(--warn-soft);color:var(--warn)}
 .p-ok{background:var(--ok-soft);color:var(--ok)}
@@ -52,15 +52,35 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
   <h1><a href="/" style="text-decoration:none;color:inherit">Review Console</a></h1>
   {% block subtitle %}{% endblock %}
   <span class="who">
-    {%- if principal %}{{ principal.display_name }} &middot; {{ principal.role }}
-      {%- if principal.can('read_audit') %} &middot; <a href="/audit">audit</a>{% endif %}
+    {%- if principal %}<strong style="font-weight:500;color:var(--ink-2)">{{ principal.display_name }}</strong> &middot; {{ principal.role|role_name }}
+      {%- if principal.can('read_audit') %} &middot; <a href="/audit">Activity log</a>{% endif %}
       &middot; <form method="post" action="/logout" style="display:inline">
-        <button type="submit" style="background:none;border:none;padding:0;color:var(--accent);cursor:pointer;font:inherit;font-size:11px">sign out</button>
+        <button type="submit" style="background:none;border:none;padding:0;color:var(--accent);cursor:pointer;font:inherit;font-size:12px">Sign out</button>
       </form>
-    {%- else %}not signed in{% endif -%}
+    {%- else %}Not signed in{% endif -%}
   </span>
 </header>
 <main>{% block content %}{% endblock %}</main>
+<script>
+// "Show technical details" — shared by every screen that has identifiers to
+// hide. One implementation, because three copies would drift.
+//
+// The choice is remembered per person, per browser: an auditor who wants run
+// ids wants them on every visit, and a recruiter never wants them once.
+// Wrapped in try/catch because a private window can make localStorage throw,
+// and a console that fails to load over a preference is a worse console.
+(function () {
+  var box = document.getElementById('tech');
+  if (!box) return;
+  function apply(on) { document.body.classList.toggle('show-tech', on); }
+  try { if (localStorage.getItem('recruit.showTech') === '1') { box.checked = true; } } catch (e) {}
+  apply(box.checked);
+  box.addEventListener('change', function () {
+    apply(box.checked);
+    try { localStorage.setItem('recruit.showTech', box.checked ? '1' : '0'); } catch (e) {}
+  });
+})();
+</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

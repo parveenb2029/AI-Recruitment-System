@@ -94,6 +94,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   candidates" section stating plainly that the bias harness is not an LL144
   audit, that no DPIA has been performed, and that no accuracy figure exists.
 
+- **Plain-language console** — `src/recruit/web/humanize.py` and rewritten
+  templates. Audit events, review reasons, rejection reasons, validation rules,
+  severities, states, roles, confidence scores and field names all render as
+  sentences a recruiter can read. Identifiers (`workflow_run_id`,
+  `prompt_version`, `model_id`, content hashes, rule numbers) are **hidden
+  behind a "Show technical details" toggle, not removed** — LL144 and GDPR
+  Art. 22 evidence depends on them. `tests/test_humanize.py` asserts both.
+- A failed sign-in now shows the email address exactly as it was typed, which
+  is the only way to tell a mistyped address from a wrong password.
+
 ### Fixed
 - Retention was a flat 7 years for every artifact in every jurisdiction, which
   conflicts with GDPR storage limitation for unsuccessful EU candidates. Now set

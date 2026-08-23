@@ -12,8 +12,8 @@ out, with a human reviewing every decision that affects a candidate.
 **Current state (2026-08-23):** was a documentation blueprint; now a working
 product. `src/recruit/` runs ingest → extract → validate → persist → review →
 match, behind real authentication with role-based access control, with a
-bias-audit harness, a compliance pack, and a one-command Docker quickstart.
-160 tests pass.
+bias-audit harness, a compliance pack, a one-command Docker quickstart, and a
+console written in plain English rather than field names. 175 tests pass.
 
 Phases 0–3 complete (the vertical slice runs end to end), plus 4.2, 5.1 and 5.2.
 Remaining: the golden set (4.1) and confidence calibration (4.3, blocked on it).
@@ -201,7 +201,8 @@ lands. Do not assume anything here exists.
 | Candidate-facing portal | Phase 5.1 | `appeal_process.md` and `candidate_disclosure.md` describe a process with no UI behind it. Today it is manual on the operator's side, and the docs say so. | Not scoped |
 | **Golden set (prompt 10)** | Phase 4.1 | **Deliberately deferred at the operator's request.** Needs 50–100 real resumes with human-labelled ground truth — that is the operator's evening, not a coding session. Everything in 4.3 is blocked on it, and no accuracy number can be quoted until it exists. | Next available |
 | Confidence calibration | Phase 2 | `confidence.calibrated: false` in config. Thresholds are round numbers, not measurements. Blocked on the golden set. | Phase 4.3 |
-| **Plain-language console copy** | Phase 3.5 / 5.1 | **The console is written for engineers and its users are not.** The audit page column heads are `Run`, `Prompt`, `Model`; the rows carry `workflow_run_id`, `prompt_version`, `model_id`, event names like `auth.login_failed`, and a raw Python dict in `detail`. Reviewers will be recruiters and hiring managers — the operator puts it at 99% non-technical. Needs: human sentences per event ("Parveen signed in" / "Sign-in failed — wrong password"), plain column heads, `detail` rendered as fields rather than a dict, and the same pass over the queue, detail, login and error screens. The jargon must survive *somewhere* — LL144 and GDPR Art. 22 evidence depends on run and model identity — so this is a presentation layer over the existing columns, not a schema change: keep the technical values behind a "Show technical details" toggle or an export. | Next available |
+| ~~**Plain-language console copy**~~ | Phase 3.5 / 5.1 | **Closed 2026-08-23.** `web/humanize.py` plus rewritten templates; the technical values are hidden behind a toggle, not removed, and `tests/test_humanize.py` fails if either half regresses. Original entry kept below for the reasoning. |
+| ~~Plain-language console copy (original entry)~~ | Phase 3.5 / 5.1 | **The console is written for engineers and its users are not.** The audit page column heads are `Run`, `Prompt`, `Model`; the rows carry `workflow_run_id`, `prompt_version`, `model_id`, event names like `auth.login_failed`, and a raw Python dict in `detail`. Reviewers will be recruiters and hiring managers — the operator puts it at 99% non-technical. Needs: human sentences per event ("Parveen signed in" / "Sign-in failed — wrong password"), plain column heads, `detail` rendered as fields rather than a dict, and the same pass over the queue, detail, login and error screens. The jargon must survive *somewhere* — LL144 and GDPR Art. 22 evidence depends on run and model identity — so this is a presentation layer over the existing columns, not a schema change: keep the technical values behind a "Show technical details" toggle or an export. | Next available |
 | Doc de-duplication | — | Sibling docs still 84–92% identical. Not on the critical path to shipping. | Optional cleanup |
 
 **Rule:** when a phase cannot deliver something it promised, add a row here in the
@@ -452,3 +453,36 @@ Append here. Newest last.
   time a packaging defect has been invisible to a machine that already had the
   right libraries, and the second time hard rule 6 caught it — the rule is
   earning its place.
+- **2026-08-23** — Plain-language console. Raised by the operator on seeing the
+  audit screen: the people who will use this are "layman 99 eprcent time", and
+  the screen was written for someone who already knew what `workflow_run_id`
+  and `auth.login_failed` meant. `src/recruit/web/humanize.py` now translates
+  events, review reasons, rejection reasons, validation rules, severities,
+  states, roles, confidences and field names into sentences, and every template
+  reads through it. **The technical values are hidden, not removed** — a "Show
+  technical details" toggle (remembered per browser) reveals `workflow_run_id`,
+  `prompt_version`, `model_id`, content hashes and rule identifiers on every
+  screen. That constraint is the whole design: LL144 and GDPR Art. 22 turn on
+  being able to name the model and prompt version behind a decision, so a
+  console that translated them away would read well and be useless in an audit.
+  `tests/test_humanize.py` enforces both halves — it parses the rendered HTML,
+  strips everything inside a `tech*` class, and fails if any identifier appears
+  in what is left, then separately asserts those identifiers are still in the
+  page. Three rules held throughout: an unrecognised code is tidied
+  (`SOME_NEW_THING` -> `Some new thing`), never guessed at, because a confident
+  mistranslation is worse than a visible code; warnings are worded to land
+  harder, not softer; and wording lives in one place, so the reject dropdown,
+  the audit sentence and the summary cannot drift apart.
+  **Four defects the screenshots caught that the tests did not.** (1) A failed
+  sign-in read "Someone tried to sign in as Admin" — `actor_name` had tidied the
+  mistyped address into a display name, destroying the one fact that makes the
+  row useful. It now quotes the address character for character; the screenshot
+  shows `"admin@localhostt"` beside a genuine `"admin@localhost"` failure, which
+  is exactly the distinction that took an hour to find during the operator's own
+  login incident. (2) `Reason invalid_credentials` leaked as a raw code.
+  (3) `Seeded: Yes` was rendered as if it were information. Both fixed by making
+  `detail_pairs` event-aware, with a per-event hide list for keys the sentence
+  already covers. (4) Field labels were mechanically title-cased into
+  `Candidate Id`, `Linkedin Url` and `Is Current: True` — schema, not resume.
+  Verified in a real browser at five screens, both toggle states. 175 tests
+  pass; ruff clean.

@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}Review — {{ run.candidate_id }}{% endblock %}
+{% block title %}Checking a resume{% endblock %}
 {% block subtitle %}
-<span class="muted">{{ run.candidate_id }} &middot; {{ run.requisition_id }}</span>
+<span class="muted">for {{ run.requisition_id or 'no job specified' }}</span>
 <span class="pill {% if run.confidence_aggregate < threshold %}p-warn{% else %}p-ok{% endif %}">
-  confidence {{ '%.2f'|format(run.confidence_aggregate) }}</span>
+  {{ run.confidence_aggregate|confidence_phrase }}</span>
 {% if 'POTENTIAL_HALLUCINATION' in (envelope.flags or []) %}
-<span class="pill p-crit">unverified evidence</span>{% endif %}
+<span class="pill p-crit">Some details not found in the document</span>{% endif %}
 {% endblock %}
 
 {% block head %}
@@ -13,7 +13,15 @@
 .split{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
 @media (max-width:1000px){.split{grid-template-columns:1fr}}
 .panel{background:var(--surface);border:1px solid var(--rule);border-radius:3px;overflow:hidden}
-.panel h2{font-size:11px;font-family:var(--mono);letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:0;padding:11px 14px;border-bottom:1px solid var(--rule)}
+.panel h2{font-size:13px;font-weight:600;color:var(--ink-2);margin:0;padding:11px 14px;border-bottom:1px solid var(--rule)}
+.tech-inline{display:none;color:var(--muted);font-size:11px}
+body.show-tech .tech-inline{display:inline}
+.techbox{display:none;background:var(--surface);border:1px solid var(--rule);border-radius:3px;padding:12px 14px;margin-top:14px}
+body.show-tech .techbox{display:block}
+.techbox dl{margin:0;display:grid;grid-template-columns:max-content 1fr;gap:2px 14px;font-family:var(--mono);font-size:11px;color:var(--muted)}
+.techbox dd{margin:0;word-break:break-all}
+.legend{font-size:12px;color:var(--muted);padding:9px 14px;border-bottom:1px solid var(--rule);background:var(--surface-2)}
+.toggle{font-size:12.5px;color:var(--muted);margin-left:auto}
 .source{font-family:var(--mono);font-size:12.5px;line-height:1.75;white-space:pre-wrap;word-break:break-word;padding:14px;max-height:70vh;overflow-y:auto;margin:0}
 mark{background:var(--accent-soft);color:inherit;border-bottom:2px solid var(--accent);padding:1px 0;border-radius:2px;cursor:pointer}
 mark.on{background:var(--warn-soft);border-bottom-color:var(--warn);box-shadow:0 0 0 3px var(--warn-soft)}
@@ -23,7 +31,7 @@ mark.on{background:var(--warn-soft);border-bottom-color:var(--warn);box-shadow:0
 .f.linked{cursor:pointer}
 .f.linked:hover{background:var(--surface-2)}
 .f.on{background:var(--warn-soft)}
-.f .k{font-size:11px;color:var(--muted);text-transform:capitalize}
+.f .k{font-size:12px;color:var(--muted)}
 .f .v{word-break:break-word}
 .f .c{font-family:var(--mono);font-size:11px;font-variant-numeric:tabular-nums}
 .c-lo{color:var(--crit);font-weight:600} .c-mid{color:var(--warn)} .c-hi{color:var(--muted)}
@@ -44,14 +52,17 @@ dialog::backdrop{background:rgba(0,0,0,.4)}
 {% block content %}
 {% if validation.findings %}
 <div class="panel" style="margin-bottom:16px;border-left:3px solid var(--crit)">
-  <h2>Validation — {{ validation.findings|length }} finding(s)</h2>
+  <h2>{{ validation.findings|length }} thing(s) the system flagged</h2>
   <div class="findings">
     {% for f in validation.findings[:8] %}
     <div class="finding">
-      <span class="pill {% if f.severity=='CRITICAL' %}p-crit{% elif f.severity=='ERROR' %}p-crit{% else %}p-warn{% endif %}">{{ f.severity }}</span>
-      <strong class="mono" style="font-size:11px">{{ f.rule }}</strong>
+      <span class="pill {% if f.severity=='CRITICAL' %}p-crit{% elif f.severity=='ERROR' %}p-crit{% else %}p-warn{% endif %}">{{ f.severity|severity_name }}</span>
+      <strong>{{ f.rule|rule_name }}</strong> —
       {{ f.message }}
-      {% if f.pointer %}<span class="mono muted" style="font-size:11px">{{ f.pointer }}</span>{% endif %}
+      <span class="tech-inline">
+        <span class="mono">{{ f.rule }}</span>
+        {%- if f.pointer %} <span class="mono">{{ f.pointer }}</span>{% endif %}
+      </span>
     </div>
     {% endfor %}
   </div>
@@ -60,19 +71,22 @@ dialog::backdrop{background:rgba(0,0,0,.4)}
 
 <div class="split">
   <div class="panel">
-    <h2>Source document{% if document %} — {{ document.filename }}{% endif %}</h2>
+    <h2>The resume as it was received{% if document %} — {{ document.filename }}{% endif %}</h2>
     {% if has_source %}
     <pre class="source" id="source">{% for s in segments %}{% if s.index is not none %}<mark id="ev-{{ s.index }}" data-index="{{ s.index }}" title="cited for {{ s.field }}">{{ s.text }}</mark>{% else %}{{ s.text }}{% endif %}{% endfor %}</pre>
     {% else %}
     <p class="muted" style="padding:14px;margin:0;font-size:13px">
-      Source text was not stored with this run, so evidence cannot be highlighted.
-      Re-run extraction to enable click-through.
+      The text of this document was not kept with the run, so we cannot show
+      you where each detail came from. Reading the resume again would restore
+      that.
     </p>
     {% endif %}
   </div>
 
   <div class="panel">
-    <h2>Extracted fields — click a linked row to locate it in the source</h2>
+    <h2>What the system read from it — click a line to see where it came from</h2>
+    <p class="legend">Each line shows what was read and how sure the system is
+      about it, from 0 to 1. Lines with an orange edge are the uncertain ones.</p>
     <div class="fields">
       {% for f in fields %}
       <div class="f {% if f.evidence_index is not none %}linked{% endif %} {% if f.confidence is not none and f.confidence < threshold %}low{% endif %}"
@@ -88,23 +102,43 @@ dialog::backdrop{background:rgba(0,0,0,.4)}
   </div>
 </div>
 
+{# Kept and rendered, not removed. If this decision is ever challenged, the
+   answer has to name the exact run, prompt version and model behind it —
+   GDPR Art. 22 and LL144 both turn on that. It is hidden by default because a
+   recruiter has no use for it, not because it is unimportant. #}
+<div class="techbox">
+  <dl>
+    <dt>workflow_run_id</dt><dd>{{ run.id }}</dd>
+    <dt>workflow_id</dt><dd>{{ run.workflow_id }}</dd>
+    <dt>candidate_id</dt><dd>{{ run.candidate_id }}</dd>
+    <dt>requisition_id</dt><dd>{{ run.requisition_id or '—' }}</dd>
+    <dt>prompt_version</dt><dd>{{ run.prompt_version or '—' }}</dd>
+    <dt>model_id</dt><dd>{{ run.model_id or '—' }}</dd>
+    <dt>status</dt><dd>{{ run.status }}</dd>
+    <dt>confidence_aggregate</dt><dd>{{ '%.4f'|format(run.confidence_aggregate) }}</dd>
+    {% if document %}<dt>content_sha256</dt><dd>{{ document.content_sha256 }}</dd>{% endif %}
+  </dl>
+</div>
+
 <form class="actions" method="post" action="/review/{{ task.id }}/resolve" id="form">
-  <button type="submit" name="decision" value="approve" class="b-ok" id="approve">Approve <kbd>A</kbd></button>
-  <button type="button" class="b-no" id="reject-open">Reject <kbd>R</kbd></button>
-  <button type="submit" name="decision" value="escalate">Escalate <kbd>E</kbd></button>
-  <span class="hint"><kbd>J</kbd> next unreviewed &middot; <kbd>Esc</kbd> back to queue</span>
+  <button type="submit" name="decision" value="approve" class="b-ok" id="approve">Looks right — approve <kbd>A</kbd></button>
+  <button type="button" class="b-no" id="reject-open">Something is wrong — reject <kbd>R</kbd></button>
+  <button type="submit" name="decision" value="escalate">Not my call — pass it up <kbd>E</kbd></button>
+  <span class="hint">Or use the keyboard: <kbd>A</kbd> approve, <kbd>R</kbd>
+    reject, <kbd>E</kbd> pass upwards, <kbd>Esc</kbd> back to the list</span>
+  <label class="toggle"><input type="checkbox" id="tech"> Show technical details</label>
 </form>
 
 <dialog id="reject">
   <form method="post" action="/review/{{ task.id }}/resolve">
     <input type="hidden" name="decision" value="reject">
-    <p style="margin:0 0 10px;font-weight:600">Why is this being rejected?</p>
+    <p style="margin:0 0 10px;font-weight:600">Why are you rejecting this?</p>
     <p class="muted" style="font-size:12px;margin:0 0 12px">
-      Reason codes rather than free text, so rejections can be counted and fed
-      back into prompt quality.
+      Pick from the list rather than writing your own — that way we can count
+      what goes wrong most often and fix the cause.
     </p>
     <select name="reason_code" required style="width:100%;margin-bottom:10px">
-      <option value="">Select a reason…</option>
+      <option value="">Choose one…</option>
       {% for code, label in reject_reasons %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
     </select>
     <textarea name="note" rows="3" placeholder="Optional note" style="width:100%;margin-bottom:12px"></textarea>

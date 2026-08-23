@@ -184,7 +184,7 @@ def test_forbidden_browser_gets_a_page_not_raw_json(client):
     sign_in(client, "hm@x.com")
     response = client.get("/audit", headers={"accept": "text/html"})
     assert response.status_code == 403
-    assert "Your role does not permit this" in response.text
+    assert "You are not allowed to do that" in response.text
 
 
 def test_admin_can_reach_the_admin_route(client):
@@ -243,7 +243,7 @@ def test_route_guard_not_template_guard(client, task_id):
     """Hiding a button is a courtesy. Typing the URL must still be refused."""
     sign_in(client, "rec@x.com")
     body = client.get(f"/review/{task_id}").text
-    assert "Approve" in body          # button is rendered
+    assert "approve" in body.lower()   # button is rendered
     assert client.post(f"/review/{task_id}/resolve",
                        data={"decision": "approve"}).status_code == 403
 

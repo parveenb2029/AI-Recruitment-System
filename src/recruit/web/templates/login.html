@@ -14,8 +14,14 @@ button[type=submit]{width:100%;background:var(--accent);border-color:var(--accen
 {% block content %}
 <div class="card">
   <h2>Sign in</h2>
-  <p class="sub">Every review decision is recorded against your account.</p>
-  {% if error %}<div class="err">Email or password not recognised.</div>{% endif %}
+  <p class="sub">Every decision you make here is recorded against your name.</p>
+  {% if error %}<div class="err">
+    <strong>That did not work.</strong>
+    <p style="margin:6px 0 0">The email and password did not match an account.
+      Check the email address character by character — a typo in the address
+      looks exactly the same from here as a wrong password, and that is the
+      more common cause.</p>
+  </div>{% endif %}
   <form method="post" action="/login">
     {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
     <label for="email">Email</label>

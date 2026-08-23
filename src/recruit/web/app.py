@@ -17,6 +17,7 @@ from ..db.auth_repository import build_auth
 from ..db.models import AuditLog, Document, ReviewTask, WorkflowRun
 from ..db.repository import Repository
 from ..db.session import create_engine_from_config, make_session_factory
+from . import humanize
 
 SESSION_COOKIE = "recruit_session"
 
@@ -47,14 +48,9 @@ TEMPLATES = Path(__file__).resolve().parent / "templates"
 # Reason codes a reviewer can pick when rejecting. Free text is not offered:
 # rejections need to be aggregable, or the quality loop in Phase 4 has nothing
 # to learn from.
-REJECT_REASONS = [
-    ("FABRICATED_CONTENT", "Evidence not in the source document"),
-    ("WRONG_EXTRACTION", "Fields extracted incorrectly"),
-    ("WRONG_DOCUMENT", "Not this candidate's document"),
-    ("UNREADABLE_SOURCE", "Source document unusable"),
-    ("DUPLICATE", "Duplicate of an existing candidate"),
-    ("OTHER", "Other — see note"),
-]
+# The wording lives in `humanize` so the dropdown, the audit sentence, and the
+# rejection summary cannot drift into three different phrasings of one reason.
+REJECT_REASONS = list(humanize.REJECT_REASONS.items())
 
 
 def create_app(
@@ -65,6 +61,25 @@ def create_app(
 ) -> FastAPI:
     app = FastAPI(title="Review Console", docs_url=None, redoc_url=None)
     templates = Jinja2Templates(directory=str(TEMPLATES))
+    # Plain-language filters. Registered here rather than imported per template
+    # so there is one place to see everything the console translates, and one
+    # place a test can enumerate.
+    templates.env.filters.update({
+        "event_title": humanize.event_title,
+        "describe_event": humanize.describe_event,
+        "actor_name": humanize.actor_name,
+        "role_name": humanize.role_name,
+        "state_name": humanize.state_name,
+        "review_reason": humanize.review_reason,
+        "reject_reason": humanize.reject_reason,
+        "rule_name": humanize.rule_name,
+        "severity_name": humanize.severity_name,
+        "confidence_phrase": humanize.confidence_phrase,
+        "detail_pairs": humanize.detail_pairs,
+        "is_concerning": humanize.is_concerning,
+        "field_label": humanize.field_label,
+        "field_value": humanize.field_value,
+    })
 
     if session_factory is None:
         session_factory = make_session_factory(create_engine_from_config(config))
@@ -400,8 +415,8 @@ def _flatten_profile(
     def _row(pointer: str, label: str, value: Any) -> dict[str, Any]:
         return {
             "pointer": pointer,
-            "label": label,
-            "value": value,
+            "label": humanize.field_label(label),
+            "value": humanize.field_value(value),
             "confidence": confidences.get(pointer),
             "evidence_index": evidence_by_pointer.get(pointer),
         }

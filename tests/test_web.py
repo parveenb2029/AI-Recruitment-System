@@ -62,14 +62,19 @@ def client(factory):
 # -- queue --------------------------------------------------------------------
 def test_empty_queue_says_so_rather_than_showing_a_blank_table(client):
     body = client.get("/").text
-    assert "Queue is empty" in body
+    assert "Nothing to check right now" in body
 
 
 def test_queue_lists_the_candidate(client, seeded):
     body = client.get("/").text
     assert "Rahul Sharma" in body
+    # The number stays — it is what you compare across candidates — but it is
+    # not the only thing on offer, because 0.57 tells a recruiter nothing.
     assert "0.57" in body
-    assert "low confidence" in body.lower()
+    assert "Not sure" in body
+    # And the reason is a sentence, not the constant that produced it.
+    assert "The system is unsure about this resume overall" in body
+    assert "LOW_CONFIDENCE_AGGREGATE" not in body
 
 
 def test_queue_orders_riskiest_first(client, factory, seeded):

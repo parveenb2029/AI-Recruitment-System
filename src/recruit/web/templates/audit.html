@@ -1,41 +1,82 @@
 {% extends "base.html" %}
-{% block title %}Audit trail{% endblock %}
-{% block subtitle %}<span class="muted">{{ entries|length }} most recent entries &middot; append-only</span>{% endblock %}
+{% block title %}Activity log{% endblock %}
+{% block subtitle %}<span class="muted">{{ entries|length }} most recent &middot; permanent record</span>{% endblock %}
 {% block head %}
 <style>
-table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--rule);border-radius:3px;font-size:13px}
-th{text-align:left;font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);padding:9px 12px;border-bottom:1px solid var(--rule-strong);white-space:nowrap}
-td{padding:8px 12px;border-bottom:1px solid var(--rule);vertical-align:top}
-tr:last-child td{border-bottom:none}
-td.m{font-family:var(--mono);font-size:11.5px;white-space:nowrap}
-.wrap-table{overflow-x:auto}
+.intro{background:var(--surface);border:1px solid var(--rule);border-radius:3px;padding:14px 16px;margin-bottom:14px;font-size:13.5px;color:var(--ink-2);display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.intro p{margin:0;max-width:62ch}
+.toggle{margin-left:auto;font-size:12.5px;white-space:nowrap}
+.rows{background:var(--surface);border:1px solid var(--rule);border-radius:3px;overflow:hidden}
+.row{display:grid;grid-template-columns:150px 132px 1fr;gap:14px;padding:12px 16px;border-bottom:1px solid var(--rule);align-items:baseline}
+.row:last-child{border-bottom:none}
+.row.flag{background:var(--crit-soft)}
+.when{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.what{font-weight:600;font-size:13.5px}
+.says{font-size:14px;color:var(--ink-2)}
+.says .who{color:var(--ink);font-weight:500}
+.facts{margin:7px 0 0;display:grid;grid-template-columns:max-content 1fr;gap:2px 12px;font-size:12.5px}
+.facts dt{color:var(--muted)}
+.facts dd{margin:0}
+.tech{display:none;margin-top:9px;padding-top:9px;border-top:1px dashed var(--rule);font-family:var(--mono);font-size:11px;color:var(--muted);grid-template-columns:max-content 1fr;gap:2px 12px}
+.tech dd{margin:0;word-break:break-all}
+body.show-tech .tech{display:grid}
+@media (max-width:760px){.row{grid-template-columns:1fr;gap:4px}}
+.note{font-size:12.5px;color:var(--muted);margin-top:12px;max-width:78ch}
 </style>
 {% endblock %}
 {% block content %}
-<div class="wrap-table">
-<table>
-  <thead><tr>
-    <th>When</th><th>Event</th><th>Actor</th><th>Role</th>
-    <th>Run</th><th>Prompt</th><th>Model</th><th>Detail</th>
-  </tr></thead>
-  <tbody>
-  {% for e in entries %}
-    <tr>
-      <td class="m muted">{{ e.occurred_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
-      <td class="m">{{ e.event }}</td>
-      <td>{{ e.actor }}</td>
-      <td class="m muted">{{ e.actor_role or '—' }}</td>
-      <td class="m muted">{{ e.workflow_run_id or '—' }}</td>
-      <td class="m muted">{{ e.prompt_version or '—' }}</td>
-      <td class="m muted">{{ e.model_id or '—' }}</td>
-      <td class="m muted">{{ e.detail or '' }}</td>
-    </tr>
-  {% endfor %}
-  </tbody>
-</table>
+
+<div class="intro">
+  <p>
+    Everything the system and the people using it have done, newest first. This
+    list can only be added to — it cannot be edited or deleted by anyone,
+    including an administrator. That is what makes it usable as evidence if a
+    candidate ever asks why a decision was made.
+  </p>
+  <label class="toggle">
+    <input type="checkbox" id="tech"> Show technical details
+  </label>
 </div>
-<p class="muted" style="font-size:12px;margin-top:12px">
-  This table cannot be edited or deleted — a database trigger rejects UPDATE and
-  DELETE (BR-05). PII in the detail column is masked (BR-06).
+
+<div class="rows">
+{% for e in entries %}
+  <div class="row {% if e.event|is_concerning %}flag{% endif %}">
+    <span class="when">{{ e.occurred_at.strftime('%d %b %Y, %H:%M') }}</span>
+    <span class="what">
+      {{ e.event|event_title }}
+      {%- if e.actor_role %}<br><span class="muted" style="font-weight:400;font-size:12px">{{ e.actor_role|role_name }}</span>{% endif %}
+    </span>
+    <div>
+      <div class="says">{{ e|describe_event }}</div>
+
+      {% set pairs = e.detail|detail_pairs(e.event) %}
+      {% if pairs %}
+      <dl class="facts">
+        {% for label, value in pairs %}<dt>{{ label }}</dt><dd>{{ value }}</dd>{% endfor %}
+      </dl>
+      {% endif %}
+
+      {# Kept, not deleted. LL144 and GDPR Art. 22 evidence depends on being
+         able to name the exact run, prompt version and model behind a decision;
+         a friendlier console that dropped them would be useless in an audit. #}
+      <dl class="tech">
+        <dt>event</dt><dd>{{ e.event }}</dd>
+        <dt>actor</dt><dd>{{ e.actor }}</dd>
+        {% if e.workflow_run_id %}<dt>workflow_run_id</dt><dd>{{ e.workflow_run_id }}</dd>{% endif %}
+        {% if e.prompt_version %}<dt>prompt_version</dt><dd>{{ e.prompt_version }}</dd>{% endif %}
+        {% if e.model_id %}<dt>model_id</dt><dd>{{ e.model_id }}</dd>{% endif %}
+        {% if e.candidate_id %}<dt>candidate_id</dt><dd>{{ e.candidate_id }}</dd>{% endif %}
+        {% if e.requisition_id %}<dt>requisition_id</dt><dd>{{ e.requisition_id }}</dd>{% endif %}
+        <dt>occurred_at</dt><dd>{{ e.occurred_at.isoformat() }}</dd>
+      </dl>
+    </div>
+  </div>
+{% endfor %}
+</div>
+
+<p class="note">
+  Email addresses and phone numbers inside these entries are partly hidden — you
+  can see that a detail was there without the log itself becoming a second copy
+  of everyone's personal data.
 </p>
 {% endblock %}
