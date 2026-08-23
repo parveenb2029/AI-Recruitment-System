@@ -15,10 +15,12 @@ dependencies = [
 [project.optional-dependencies]
 # OCR needs system binaries too: Tesseract and Poppler. See README.
 ocr = ["pytesseract>=0.3.10", "pdf2image>=1.17"]
+anthropic = ["anthropic>=0.40"]
 dev = ["pytest>=8.0", "ruff>=0.6"]
 
 [project.scripts]
 recruit-ingest = "recruit.ingest:main"
+recruit-extract = "recruit.extract:main"
 
 [build-system]
 requires = ["hatchling"]

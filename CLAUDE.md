@@ -9,9 +9,11 @@ Project context for AI coding sessions. Read this first, every session.
 An AI-assisted recruitment pipeline: resume in, ranked and evidence-cited shortlist
 out, with a human reviewing every decision that affects a candidate.
 
-**Current state (2026-08-22): documentation blueprint, no application code.**
-136 files, 112 of them Markdown. The two Python files under `tools/legacy/` are
-document generators — they wrote the docs, they do not run the pipeline.
+**Current state (2026-08-22):** was a documentation blueprint; now has a working
+ingest → extract pipeline under `src/recruit/`, a config layer, and 29 passing
+tests. Phases 0–3.2 complete. The two scripts under `tools/legacy/` are the
+original document generators — they wrote the docs, they do not run the pipeline,
+and they must never be run again.
 
 **Target: a working single-tenant product that ships**, not a specification for
 someone else to implement. Estimated 4–6 months of focused solo work.
@@ -136,7 +138,7 @@ scoring-decomposition decisions that are hardest to change later.
 
 - **One prompt, one commit.** Commit message = the prompt's goal.
 - Every prompt carries a `DONE WHEN:` acceptance command. Run it; paste the output.
-- Add tests from Phase 3.3 onward; run the suite every session.
+- Every session that touches `src/` adds tests and runs `python -m pytest -q`.
 - Record decisions here, in this file, in the session that makes them.
 - Flag contradictions found in the docs rather than silently fixing them.
 
@@ -153,7 +155,8 @@ artifact. Summary:
 | 1 | WF-03 + WF-04 result schemas | **done** |
 | 2 | Config layer, de-branding, adapters | **done** |
 | 3.1 | Ingest | **done** |
-| 3.2–3.6 | Extract → validate → persist → review console → match | not started |
+| 3.2 | Extract (structured output) | **done** |
+| 3.3–3.6 | Validate → persist → review console → match | not started |
 | 4.1–4.3 | Golden set, bias harness, confidence calibration | not started |
 | 5.1–5.2 | Auth/RBAC/compliance pack, Docker + quickstart | not started |
 
@@ -166,7 +169,7 @@ lands. Do not assume anything here exists.
 
 | Item | Owed by | Why deferred | Lands in |
 |------|---------|--------------|----------|
-| `LLMAdapter` implementation | Phase 2 | Protocol exists in `adapters/base.py`, but `registry.py` sets `llm=None`. Writing it is quick; *running* it needs a real API key on the operator's machine, and hard rule 6 forbids shipping untested code that calls a paid API. | Phase 3.2 |
+| ~~`LLMAdapter` implementation~~ | Phase 2 | **Closed in Phase 3.2.** `AnthropicLLM` uses tool use; `FakeLLM` runs the pipeline with no key. The fake path is fully tested. The real API path is written but not yet exercised against live Anthropic — first real run is the operator's. | — |
 | Virus scan on intake | Phase 3.1 | `Validation.md` §2 requires a clean scan before acceptance. Needs a scanner (ClamAV or a cloud API) that is not a Python dependency. Ingest records `scanned: false` rather than pretending. | Phase 5.2 |
 | OCR on the operator's machine | Phase 3.1 | The fallback is **verified working** — recovered 408 chars from an image-only PDF in the build environment. But Tesseract and Poppler are system binaries, not wheels, so it is untested on Windows. `pip install -e ".[ocr]"` covers the Python side only. | Phase 5.2 (Docker image bundles them) |
 | Cloud storage / ATS / auth adapters | Phase 2 | Only `local`, `csv`/`none`, and `single_user` are implemented. Others raise `NotImplementedError` with a clear message rather than failing obscurely. | Phase 5 |
@@ -226,3 +229,18 @@ Append here. Newest last.
   operator install problem, the other is a bad document, and conflating them would
   send good scans to manual transcription while hiding a fixable issue. OCR
   fallback verified end to end. `pyproject.toml` added; 14 tests pass.
+- **2026-08-22** — Phase 3.2. First LLM call. `AnthropicLLM` uses **tool use with
+  forced `tool_choice`**, so the model physically cannot answer in prose — this
+  removes the repair-prompt loop the original specs designed around, exactly as
+  predicted in the Phase 3.2 note. `FakeLLM` satisfies the same protocol and lets
+  the whole pipeline, validation included, run with no key and no cost.
+  `prompts.py` loads the system and user prompts **from `Prompt.md`**, not from
+  Python literals — the markdown is the governed artifact and duplicating it in
+  code would guarantee drift. It also **dereferences file `$ref`s**: no provider
+  resolves external refs in a tool schema, so `resume.schema.json` is inlined
+  before the call. Three decisions worth keeping: `confidence_aggregate` is the
+  **minimum** field confidence, not the mean (averaging lets nine good fields hide
+  one fabricated employer); ingest facts (page count, char count, content hash)
+  **overwrite** whatever the model claims, since the model must not be trusted to
+  report them; an unfilled `{{runtime_var}}` raises rather than reaching the model
+  as literal text. 29 tests pass.

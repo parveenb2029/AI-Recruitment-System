@@ -41,6 +41,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   validation, text extraction for PDF/DOCX/TXT, OCR fallback, content hashing, and
   a CLI (`python -m recruit.ingest <file>`). `pyproject.toml` and a 14-test suite.
 
+- **Phase 3.2** — `src/recruit/extract.py`, `src/recruit/prompts.py`, and
+  `src/recruit/adapters/llm.py`: WF-03 extraction via native structured output,
+  prompt loading from the markdown specs, JSON Schema `$ref` dereferencing, and a
+  `FakeLLM` that runs the pipeline without an API key. CLI:
+  `python -m recruit.extract <file> [--fake]`.
+
 ### Fixed
 - Retention was a flat 7 years for every artifact in every jurisdiction, which
   conflicts with GDPR storage limitation for unsuccessful EU candidates. Now set
@@ -52,8 +58,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   inspection — which is the argument for keeping that check in CI.
 
 ### Notes
-- Project state at this commit: documentation blueprint, no application code.
-  136 files, 112 Markdown. See `CLAUDE.md` for the roadmap.
+- The project began as a documentation blueprint with no application code.
+  As of Phase 3.2 it has a working ingest → extract pipeline and 29 passing tests.
+  See `CLAUDE.md` for the roadmap and the deferred-work register.
 - Scope for v1 fixed to WF-03 (extraction), WF-04 (matching), and the review
   console. The remaining six workflows stay documented and unbuilt.
 
@@ -68,10 +75,6 @@ Template for future entries:
 ### Changed
 ### Deprecated
 ### Removed
-- **Phase 3.1** — `src/recruit/ingest.py` and `src/recruit/errors.py`: document
-  validation, text extraction for PDF/DOCX/TXT, OCR fallback, content hashing, and
-  a CLI (`python -m recruit.ingest <file>`). `pyproject.toml` and a 14-test suite.
-
 ### Fixed
 ### Security
 -->
