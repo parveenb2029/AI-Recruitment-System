@@ -1,0 +1,88 @@
+name: CI
+
+# Every gate that has caught a real defect in this project, run on every push.
+# In order of how often they have earned their place:
+#
+#   pytest          — the whole suite, including test_packaging, which found two
+#                     undeclared dependencies that a passing local install hid.
+#   check_branding  — the project shipped with a fictional company's name in 27
+#                     files. This is why it cannot happen again.
+#   validate_output — the schemas are the contract with the model.
+#   bias --self-test— a harness that has never detected bias cannot support a
+#                     claim of finding none.
+#   ruff            — cheapest, so it runs first and fails fast.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.12 is the pinned target. 3.11 is the floor declared in pyproject,
+        # and testing it is the only way that floor means anything.
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install
+        # Deliberately NOT [all]: hard rule 9 says the pipeline must run without
+        # Postgres or a compiler. If a core module starts importing psycopg,
+        # this install is where it should break.
+        run: pip install -e ".[web,dev,anthropic]"
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Tests
+        run: python -m pytest -q
+
+      - name: No organization-specific values outside config/
+        run: python tools/check_branding.py
+
+      - name: Sample outputs match their schemas
+        run: |
+          python tools/validate_output.py samples/WF-03_output_example.json
+          python tools/validate_output.py samples/WF-04_output_example.json
+
+      - name: Bias harness detects known-injected bias
+        run: python -m recruit.bias_audit --self-test
+
+      - name: Placeholders all resolve
+        run: python tools/render_docs.py --check
+
+  docker:
+    # The quickstart is a promise. Building it here is how we find out it is
+    # still true, on a machine that has none of the dependencies installed.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the image
+        run: docker build -t recruit-console:ci .
+
+      - name: OCR binaries are actually in the image
+        # The image exists largely to make OCR work on Windows. If these are
+        # missing, the image has lost its main reason to exist and the deferred
+        # register is wrong to call that item closed.
+        run: |
+          docker run --rm recruit-console:ci tesseract --version
+          docker run --rm recruit-console:ci pdftoppm -v
+
+      - name: The stack comes up and serves the console
+        run: |
+          docker compose up -d --wait --wait-timeout 180
+          curl -fsS http://127.0.0.1:8000/health
+          docker compose logs console
+          docker compose down -v
