@@ -28,11 +28,24 @@ someone else to implement. Estimated 4–6 months of focused solo work.
 
 ## Scope decision — read before proposing work
 
-**Build WF-03 (extraction) + WF-04 (matching) + the review console. Nothing else.**
+**Build WF-03 (extraction) + WF-04 (matching) + the review console — and, from
+2026-08-23, WF-02 (intake). Nothing else.**
 
-WF-01, 02, 05, 06, 07, and 08 are workflow and record-keeping that an existing ATS
+WF-01, 05, 06, 07, and 08 are workflow and record-keeping that an existing ATS
 already does adequately. They stay documented and unbuilt for v1. The commercial
 core is extraction, matching, and the review screen.
+
+**WF-02 was cut and is now back in.** Amended deliberately by the operator on
+2026-08-23, not drifted into. The reason: with Phases 0–5 complete, every resume
+still reaches the system because a person put it there, which caps the product at
+the speed of that person. Intake is what makes it a system rather than a tool.
+The plan is `docs/intake_playbook.md` (Phase 6, thirteen prompts, 6.0–6.12).
+
+Three constraints came with the amendment and are not negotiable inside it:
+LinkedIn has no reachable API and must never be scraped; the safety gate (6.5)
+lands before automatic screening (6.8); and the golden set (6.10) is no longer
+optional, because automatic screening against uncalibrated thresholds makes
+claims about real people that nobody has checked.
 
 Also cut from v1: Zapier, Make.com, Google Drive intake, SharePoint as primary
 store, multi-language locale packs, and the entire 2027 roadmap.
@@ -182,6 +195,7 @@ artifact. Summary:
 | 4.3 | Confidence calibration | not started (blocked on 4.1) |
 | 5.1 | Auth, RBAC, compliance pack | **done** |
 | 5.2 | Docker + quickstart + CI | **done** — image build unverified, see below |
+| 6 | **Intake automation (WF-02)** — mail intake, landing zone, safety gate, screen on arrival | not started — `docs/intake_playbook.md` |
 
 ---
 
@@ -486,3 +500,42 @@ Append here. Newest last.
   `Candidate Id`, `Linkedin Url` and `Is Current: True` — schema, not resume.
   Verified in a real browser at five screens, both toggle states. 175 tests
   pass; ruff clean.
+- **2026-08-23** — Scope amended: WF-02 (intake) is back in, as Phase 6. The
+  operator asked to connect Gmail, LinkedIn, Naukri and Indeed so applications
+  arrive and are screened without anyone pasting a file. Recorded here rather
+  than absorbed quietly, because the scope section explicitly told a session
+  finding itself doing this to stop and flag it — and it did.
+  **What the research changed about the ask.** Three of the four named sources
+  have no reachable API. LinkedIn applicant data sits behind the Talent
+  Solutions / Recruiter System Connect partnership: an enterprise sales track,
+  four to six months minimum, expecting existing scale — and scraping instead
+  breaches their User Agreement, which they enforce. Indeed Apply will POST
+  applications to a webhook, which is precisely the right shape, but only after
+  a signed Developer Agreement, a published XML job feed and an issued token.
+  Naukri is the same, through their enterprise team. Only Gmail is buildable
+  today, and its restricted read scope needs an annual paid CASA assessment
+  **unless** the app is internal to one Workspace org or used only by its
+  developer — an exemption that covers running your own hiring and expires the
+  day this is sold to someone else.
+  **So the design is email, not four integrations.** Every one of those
+  platforms will deliver to an address, which needs nobody's permission. One
+  mail intake, a small parser per source, a separate alias per source so
+  provenance is a fact rather than a guess from a sender name, and the raw
+  message kept forever because parsers get fixed and the evidence they were
+  wrong about must outlive them. Partner APIs become an upgrade slot, not a
+  prerequisite. **The unknown that gates everything**: some sources attach the
+  resume, others send "someone applied, click here" behind a login, and which
+  one you get varies by country, plan and how the job was posted. No
+  documentation answers it. Prompt 6.1 is the operator applying to their own
+  posting and reading what lands; every parser is built against those captures.
+  **Three constraints recorded with the amendment.** Never build for or scrape
+  LinkedIn. The safety gate (6.5) lands before automatic screening (6.8) —
+  opening files sent by strangers with no human looking first is what finally
+  makes the deferred virus-scan item mandatory, alongside expansion limits, an
+  hourly cap, a spend cap and a kill switch, because one mail loop pointed at
+  the intake address bills for the same message all night. And the golden set
+  (6.10) stops being optional: `confidence.calibrated: false` is tolerable while
+  the operator hand-picks the resumes, and indefensible once every applicant is
+  screened automatically against thresholds nobody measured. The human decision
+  gate does not move — screening automatically is lawful, rejecting
+  automatically is the part that is not.
