@@ -1,0 +1,32 @@
+# Local development stack.
+#
+#     docker compose up -d
+#     python -m recruit.db_init
+#
+# Postgres only for now. The app service and worker arrive in Phase 5.2, when
+# the image also bundles Tesseract and Poppler so OCR works on any platform.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: recruit-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: recruit
+      POSTGRES_PASSWORD: recruit
+      POSTGRES_DB: recruit
+      # Deterministic collation, so ORDER BY on candidate names does not change
+      # between a developer laptop and production.
+      POSTGRES_INITDB_ARGS: "--locale=C --encoding=UTF8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - recruit-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U recruit -d recruit"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  recruit-pgdata:

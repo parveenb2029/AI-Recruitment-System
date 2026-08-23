@@ -10,8 +10,8 @@ An AI-assisted recruitment pipeline: resume in, ranked and evidence-cited shortl
 out, with a human reviewing every decision that affects a candidate.
 
 **Current state (2026-08-22):** was a documentation blueprint; now has a working
-ingest → extract → validate pipeline under `src/recruit/`, a config layer, and 45
-passing tests. Phases 0–3.3 complete. The two scripts under `tools/legacy/` are the
+ingest → extract → validate → persist pipeline under `src/recruit/`, a config
+layer, and 61 passing tests. Phases 0–3.4 complete. The two scripts under `tools/legacy/` are the
 original document generators — they wrote the docs, they do not run the pipeline,
 and they must never be run again.
 
@@ -157,7 +157,8 @@ artifact. Summary:
 | 3.1 | Ingest | **done** |
 | 3.2 | Extract (structured output) | **done** |
 | 3.3 | Validate (incl. VR-03 evidence grounding) | **done** |
-| 3.4–3.6 | Persist → review console → match | not started |
+| 3.4 | Persist (Postgres, append-only audit) | **done** |
+| 3.5–3.6 | Review console → match | not started |
 | 4.1–4.3 | Golden set, bias harness, confidence calibration | not started |
 | 5.1–5.2 | Auth/RBAC/compliance pack, Docker + quickstart | not started |
 
@@ -260,3 +261,20 @@ Append here. Newest last.
   that combination is the one that would put an unreviewed extraction in front of
   a hiring manager. Validation is wired into the extract CLI and downgrades status
   to PARTIAL on any blocking finding. 45 tests pass; ruff clean.
+- **2026-08-22** — Phase 3.4. Postgres replaces the folder-as-database design.
+  Six tables under `src/recruit/db/`. **The append-only audit log is enforced in
+  two layers**: the `Repository` exposes no mutating method (a test asserts this
+  by introspection), and a database trigger raises on UPDATE or DELETE. Verified
+  against real Postgres 16 — both operations rejected with
+  `audit_log is append-only ... (BR-05)`. One layer alone is insufficient: app
+  rules are bypassed by anyone with a psql prompt, DB rules are silently absent if
+  a migration is skipped. Idempotency is a `UNIQUE(content_sha256)` on documents
+  plus `UNIQUE(workflow_id, document_id)` on runs, so re-submitting a resume
+  costs nothing and never duplicates API spend; `force=True` is the documented
+  manual re-run path. PII is **masked, not dropped**, in audit detail (BR-06) —
+  `rahul.sharma@email.com` stores as `r***[22]`, so a reviewer can still see a
+  field was present. Models declare `JSON` so the suite runs on SQLite with no
+  server; the migration upgrades to `JSONB` on Postgres. The same 16 persistence
+  tests pass on both. Retention now queries per jurisdiction and consent extends
+  the window rather than removing it. `docker-compose.yml` and
+  `python -m recruit.db_init` added. 61 tests pass; ruff clean.

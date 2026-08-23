@@ -52,10 +52,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   against the source document and flags `POTENTIAL_HALLUCINATION` below 0.8.
   Wired into the extract CLI.
 
+- **Phase 3.4** — `src/recruit/db/`: SQLAlchemy models, repository, and schema
+  bootstrap. Append-only audit log enforced by a database trigger. Idempotency on
+  content hash. Per-jurisdiction retention queries. `docker-compose.yml` and
+  `python -m recruit.db_init`.
+
 ### Fixed
 - Retention was a flat 7 years for every artifact in every jurisdiction, which
   conflicts with GDPR storage limitation for unsuccessful EU candidates. Now set
   per jurisdiction in organization config.
+- The numbered folders `01_`–`08_` were serving as documentation, pipeline stage,
+  and artifact store at once. Postgres is now the system of record; the folders
+  are documentation and an optional export view.
 - 60 references to a fictional company ("Contoso Ltd", `*@contoso.com`,
   `recruitment.contoso.com`) across 36 files, plus `recruitment.example.com` and
   `@company.com` in 14 more. All now resolve from config.
