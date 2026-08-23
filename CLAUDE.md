@@ -11,7 +11,8 @@ out, with a human reviewing every decision that affects a candidate.
 
 **Current state (2026-08-22):** was a documentation blueprint; now has a working
 ingest → extract → validate → persist → review pipeline under `src/recruit/`, a
-config layer, a working web console, and 78 passing tests. Phases 0–3.5 complete. The two scripts under `tools/legacy/` are the
+config layer, a working web console, and 82 passing tests. Phases 0–3.5 complete.
+The two scripts under `tools/legacy/` are the
 original document generators — they wrote the docs, they do not run the pipeline,
 and they must never be run again.
 
@@ -44,7 +45,7 @@ Decided once. Do not re-choose these per session.
 | Language | Python 3.12, `uv` for deps, `ruff` for lint+format, `pytest` |
 | Models | Pydantic v2 |
 | API | FastAPI |
-| Database | Postgres 16, SQLAlchemy 2.x, Alembic migrations from day one |
+| Database | **SQLite by default** (zero setup); Postgres 16 for production. SQLAlchemy 2.x, Alembic. |
 | Documents | `pypdf`, `python-docx`, Tesseract OCR fallback |
 | Evidence check | `rapidfuzz` — **implemented**, `validate.validate_evidence` |
 | LLM | Adapter interface; **native structured-output / tool-calling mode only** |
@@ -54,7 +55,6 @@ Decided once. Do not re-choose these per session.
 ---
 
 ## Hard rules
-
 1. **Never run `tools/legacy/generate.py`.** It overwrites the entire tree from a
    hardcoded path. Docs are hand-maintained from the initial commit onward. The
    root-level `generate.py` and `_create_docx_samples.py` are inert stubs that
@@ -71,7 +71,8 @@ Decided once. Do not re-choose these per session.
    content hash (BR-05).
 5. **No real candidate data in the repo.** Synthetic, or consented and anonymized.
 6. **Nothing is "done" until it has been run.** Execute the acceptance command and
-   paste real terminal output.
+   paste real terminal output — on a machine that does NOT already have the
+   dependencies, where that is what is being tested.
 7. **No organization-specific value outside `config/`.** No company name, email,
    domain, retention period, SLA, or scoring weight hardcoded anywhere else.
    `python tools/check_branding.py` enforces this; run it in CI.
@@ -81,7 +82,14 @@ Decided once. Do not re-choose these per session.
    **runtime** prompt variables the orchestrator fills per run — the renderer
    deliberately leaves them alone. Do not conflate them.
 
----
+
+9. **`pip install -e .` alone must run the pipeline.** Ingest, extract, validate,
+   and persist work with no server, no Docker, and no compiled driver. Only the
+   web console (`[web]`) and Postgres (`[postgres]`) are extras. Anything that
+   breaks that is a defect, not a configuration choice.
+10. **Every module-level import must be declared in `pyproject.toml`.**
+    `tests/test_packaging.py` enforces it. A dependency that is merely transitive
+    works until the package that pulled it in swaps it out.---
 
 ## Known defects in the existing docs — do not propagate
 
@@ -296,3 +304,16 @@ Append here. Newest last.
   append-only audit log with reviewer identity, prompt version, and model id.
   `python -m recruit.seed` populates a working queue so a new install never opens
   on an empty screen. 78 tests pass; ruff clean.
+- **2026-08-22** — Packaging fixes, both found by running a real install rather
+  than by reading code. (1) `pyproject.toml` had been overwritten from a stale
+  scratch copy, silently dropping `sqlalchemy`, `alembic`, `psycopg`, and
+  `rapidfuzz` plus three console scripts — a fresh install died with
+  `ModuleNotFoundError`. `tests/test_packaging.py` now walks every import in
+  `src/` and fails if it is undeclared; **it immediately caught a second one**,
+  `referencing`, which was working only as a jsonschema transitive.
+  (2) The shipped config defaulted to a **Postgres** URL while `psycopg` is an
+  optional extra, so `python -m recruit.seed` failed on a clean machine. Default
+  is now SQLite — no server, no Docker, no compiled driver — and a missing driver
+  raises `DatabaseDriverMissing` naming both fixes instead of a bare import
+  error. Postgres remains the production target and is one config line away.
+  82 tests pass.
