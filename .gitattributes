@@ -1,0 +1,44 @@
+# Normalize line endings so Windows and Linux contributors do not produce
+# whole-file diffs against each other, and so the "LF will be replaced by CRLF"
+# warnings stop burying real git output.
+#
+# Files are stored in the repository with LF. Git converts to the platform's
+# native endings on checkout where marked.
+
+* text=auto eol=lf
+
+# Explicitly text
+*.md        text eol=lf
+*.py        text eol=lf
+*.json      text eol=lf
+*.yaml      text eol=lf
+*.yml       text eol=lf
+*.toml      text eol=lf
+*.html      text eol=lf
+*.jinja     text eol=lf
+*.txt       text eol=lf
+*.mmd       text eol=lf
+.gitignore  text eol=lf
+.env.example text eol=lf
+LICENSE     text eol=lf
+
+# Windows-only scripts keep CRLF or they will not run
+*.ps1       text eol=crlf
+*.bat       text eol=crlf
+*.cmd       text eol=crlf
+
+# Binary — never touch these
+*.pdf       binary
+*.docx      binary
+*.doc       binary
+*.xlsx      binary
+*.pptx      binary
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.ico       binary
+*.zip       binary
+*.woff      binary
+*.woff2     binary
+*.ttf       binary
