@@ -601,3 +601,29 @@ Append here. Newest last.
   performed, and that the bias harness is not an independent audit. Publishing a
   hiring-decision system without those sentences would invite someone to deploy
   it on real applicants on the strength of claims nobody has verified.
+- **2026-08-23** — Source detection now takes two signals, not one, and says
+  which answered. Prompted by the first real capture: a test message sent to
+  `parveenb2029+indeed@gmail.com` arrived with **no tag at all** — zero
+  occurrences of `+indeed` in 93KB — because Gmail's address-book autocomplete
+  had silently replaced the typed address with the saved contact. The `To:`
+  header read `Parveen <parveenb2029@gmail.com>`, display name and all.
+  The fix is not "be more careful when typing". A delivery tag is easy to lose —
+  forwarding rules, clients that rewrite recipients, autocomplete — and a system
+  that answers "unknown" for every application whenever that happens is useless
+  in exactly the case where provenance matters. `detect_source` now falls back
+  to the sender's domain (`@linkedin.com` -> linkedin, suffix-matched so
+  `alerts@e.indeed.com` still resolves) and returns `(source, signal)` so the
+  record says *how* it knows. The tag wins where both are present: it is the
+  signal the operator chose and published, while a domain only says who sent the
+  mail, not which posting it belongs to — and a board forwarding on another's
+  behalf would otherwise be mislabelled.
+  `source_signal` is stored rather than derived because "this is a LinkedIn
+  application" is a materially different claim under each signal, and a reviewer
+  asking why a candidate was routed somewhere deserves to know which one
+  answered.
+  Also added: `.gitignore` now refuses every `.eml` by default, with an
+  exception only for `tests/fixtures/intake/redacted/`. The repository went
+  public today, the first capture carried a real personal PDF, and the gap
+  between "downloaded a message" and "published someone's attachment" was one
+  `git add -A`. Raw captures live beside it in `raw/`, ignored, never leaving
+  the machine that made them. 219 tests pass; ruff clean.

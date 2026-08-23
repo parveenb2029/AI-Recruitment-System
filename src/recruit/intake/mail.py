@@ -113,6 +113,7 @@ class IncomingMail:
     message_id: str
     message_id_synthetic: bool
     source: str
+    source_signal: str
     from_address: str
     from_name: str
     to_addresses: list[str]
@@ -221,24 +222,70 @@ def _addresses(message: EmailMessage, *names: str) -> list[str]:
     return seen
 
 
-def detect_source(addresses: list[str], aliases: dict[str, str] | None = None) -> str:
-    """Which job board this came through, from the address it was sent to.
+# Domains that identify a job board when the delivery tag is missing. Weaker
+# evidence than a tag you chose yourself — a domain says who sent the mail, not
+# which posting it belongs to — but far better than giving up.
+SENDER_DOMAINS: dict[str, str] = {
+    "linkedin.com": "linkedin",
+    "naukri.com": "naukri",
+    "indeed.com": "indeed",
+    "indeedemail.com": "indeed",
+    "monster.com": "monster",
+    "glassdoor.com": "glassdoor",
+    "ziprecruiter.com": "ziprecruiter",
+}
 
-    Uses plus-addressing (RFC 5233): mail to `jobs+linkedin@example.com` is
-    delivered to `jobs@example.com` carrying the tag `linkedin`. That makes
-    provenance a fact rather than a guess from the sender's display name — and
-    sender names change without notice, while an address you published does not.
+BY_TAG = "delivery_tag"
+BY_DOMAIN = "sender_domain"
+BY_NOTHING = "none"
 
-    `aliases` maps a tag to a source name when they differ. An unrecognised tag
-    is returned as itself, because inventing a source is worse than an odd one.
+
+def detect_source(
+    addresses: list[str],
+    aliases: dict[str, str] | None = None,
+    sender: str | None = None,
+    domains: dict[str, str] | None = None,
+) -> tuple[str, str]:
+    """Which job board this came through, and how we know.
+
+    Returns `(source, signal)` — the second half matters. "This is a LinkedIn
+    application" is a different claim depending on whether it was addressed to a
+    tag you published or merely sent from a linkedin.com machine, and a reviewer
+    asking why a candidate was routed a certain way deserves to know which.
+
+    Two signals, strongest first:
+
+    1. **Delivery tag** (RFC 5233 sub-addressing) — mail to
+       `jobs+linkedin@example.com` lands in `jobs@example.com` carrying the tag.
+       Strongest, because you chose the address and published it yourself.
+    2. **Sender domain** — mail from `@linkedin.com` is from LinkedIn. Weaker: it
+       identifies the sender, not which posting the application belongs to, and
+       it is a fact about the world rather than a decision you made.
+
+    Two signals rather than one because the first is easy to lose. A forwarding
+    rule, a mail client that rewrites recipients, an address-book autocomplete
+    quietly replacing what was typed — any of these strips the tag, and a system
+    that then reports "unknown" for every application is useless in exactly the
+    situation where it matters. An unrecognised tag is still returned as itself:
+    inventing a source is worse than reporting an odd one.
     """
     aliases = aliases or {}
     for address in addresses:
         local, _, _ = address.partition("@")
         _, plus, tag = local.partition("+")
         if plus and tag:
-            return aliases.get(tag.lower(), tag.lower())
-    return "unknown"
+            return aliases.get(tag.lower(), tag.lower()), BY_TAG
+
+    domains = domains or SENDER_DOMAINS
+    if sender:
+        _, _, host = sender.rpartition("@")
+        host = host.lower().strip()
+        for known, name in domains.items():
+            # Suffix match so `jobs-noreply@e.indeed.com` is still Indeed.
+            if host == known or host.endswith(f".{known}"):
+                return name, BY_DOMAIN
+
+    return "unknown", BY_NOTHING
 
 
 def _received_at(message: EmailMessage) -> datetime:
@@ -370,7 +417,8 @@ def parse(raw: bytes, *, aliases: dict[str, str] | None = None) -> IncomingMail:
     except Exception:  # noqa: BLE001
         return IncomingMail(
             message_id=f"sha256:{digest}", message_id_synthetic=True,
-            source="unknown", from_address="", from_name="", to_addresses=[],
+            source="unknown", source_signal=BY_NOTHING,
+            from_address="", from_name="", to_addresses=[],
             subject="", received_at=datetime.now(UTC), body_text="",
             raw_size_bytes=size, raw_sha256=digest,
             quarantine_reasons=[UNPARSEABLE],
@@ -388,6 +436,8 @@ def parse(raw: bytes, *, aliases: dict[str, str] | None = None) -> IncomingMail:
 
     # Delivered-To and X-Original-To survive forwarding; To does not always.
     recipients = _addresses(message, "Delivered-To", "X-Original-To", "To", "Cc")
+
+    source, signal = detect_source(recipients, aliases, sender=from_address)
 
     attachments = _attachments(message)
     body = _body_text(message)
@@ -411,7 +461,8 @@ def parse(raw: bytes, *, aliases: dict[str, str] | None = None) -> IncomingMail:
     return IncomingMail(
         message_id=message_id,
         message_id_synthetic=synthetic,
-        source=detect_source(recipients, aliases),
+        source=source,
+        source_signal=signal,
         from_address=from_address.lower(),
         from_name=from_name,
         to_addresses=recipients,

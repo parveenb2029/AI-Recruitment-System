@@ -57,6 +57,21 @@ DLQ/
 *.sqlite3
 storage/
 
+# ---- Captured emails (Phase 6 intake) ----
+# A downloaded message carries real addresses, real names, and whatever file was
+# attached. The repository is PUBLIC. Nothing raw is ever committed.
+#
+# Redacted fixtures are committed deliberately, under redacted/ — that directory
+# is the only .eml that may be published, and putting a file there is a decision
+# someone makes, not something that happens by accident.
+*.eml
+# Ignore what is IN raw/, but keep the folder itself in the repo — otherwise a
+# fresh clone has nowhere obvious to put a capture, and git does not track
+# empty directories.
+tests/fixtures/intake/raw/*
+!tests/fixtures/intake/raw/.gitkeep
+!tests/fixtures/intake/redacted/*.eml
+
 # Candidate data must never be committed - synthetic/consented only, in samples/
 evals/data/
 !evals/data/.gitkeep

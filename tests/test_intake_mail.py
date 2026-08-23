@@ -109,14 +109,12 @@ def test_a_missing_date_does_not_lose_the_message():
     ("jobs+linkedin@example.com", "linkedin"),
     ("jobs+naukri@example.com", "naukri"),
     ("jobs+INDEED@example.com", "indeed"),
-    ("jobs@example.com", "unknown"),
 ])
-def test_the_source_comes_from_the_address_it_was_sent_to(address, expected):
-    """Provenance as a fact, not a guess from the sender's display name.
-
-    Display names change without notice — an address you published does not.
-    """
-    assert mail.parse(build(to=address)).source == expected
+def test_the_delivery_tag_is_the_strongest_signal(address, expected):
+    """An address you published and chose beats anything inferred."""
+    result = mail.parse(build(to=address))
+    assert result.source == expected
+    assert result.source_signal == mail.BY_TAG
 
 
 def test_an_unknown_tag_is_reported_as_itself():
@@ -127,6 +125,45 @@ def test_an_unknown_tag_is_reported_as_itself():
 def test_an_alias_map_renames_a_tag():
     result = mail.parse(build(to="jobs+li@example.com"), aliases={"li": "linkedin"})
     assert result.source == "linkedin"
+
+
+def test_the_sender_domain_answers_when_the_tag_is_missing():
+    """The tag is easy to lose, and losing it must not blind the system.
+
+    A forwarding rule, a client that rewrites recipients, or an address-book
+    autocomplete quietly swapping in a saved contact will all strip it — the
+    last of those is exactly how the first real capture on this project arrived
+    with no tag at all. Reporting "unknown" for every application in that
+    situation would be useless precisely when it matters.
+    """
+    result = mail.parse(build(to="jobs@example.com",
+                              sender="jobs-noreply@linkedin.com"))
+    assert result.source == "linkedin"
+    assert result.source_signal == mail.BY_DOMAIN
+
+
+def test_a_subdomain_still_identifies_the_sender():
+    result = mail.parse(build(to="jobs@example.com",
+                              sender="alerts@e.indeed.com"))
+    assert result.source == "indeed"
+
+
+def test_the_tag_wins_over_the_domain():
+    """You published the tag; the domain is merely where the mail came from.
+
+    A board that forwards on behalf of another would otherwise mislabel the
+    application, and the tag is the signal the operator actually controls.
+    """
+    result = mail.parse(build(to="jobs+naukri@example.com",
+                              sender="jobs-noreply@linkedin.com"))
+    assert result.source == "naukri"
+    assert result.source_signal == mail.BY_TAG
+
+
+def test_neither_signal_admits_it_rather_than_guessing():
+    result = mail.parse(build(to="jobs@example.com", sender="someone@gmail.com"))
+    assert result.source == "unknown"
+    assert result.source_signal == mail.BY_NOTHING
 
 
 # -- filenames, the dangerous part --------------------------------------------
