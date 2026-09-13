@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import ast
 import sys
+import textwrap
 import tomllib
 from pathlib import Path
 
@@ -152,3 +153,45 @@ def test_missing_driver_explains_how_to_fix_it():
     assert "pip install" in message
     assert "sqlite" in message.lower()
 
+
+
+def test_bootstrap_runs_without_the_web_extra():
+    """Hard rule 9: `pip install -e .` alone must run the pipeline.
+
+    Creating the first administrator is core, not console. This nearly broke
+    when the first-run banner started deriving a display name from the email
+    address: the tidying rule lived in `web/humanize.py`, and `recruit.web`
+    imports FastAPI — so `python -m recruit.bootstrap` would have needed the
+    console installed to print a name. The rule moved to `recruit.names`, which
+    is standard library only.
+
+    Everything on this path is checked, not just the one import that caused it:
+    a future edit that reaches into `web` from any of them fails here rather
+    than on a stranger's machine.
+    """
+    import subprocess
+    import sys
+
+    program = textwrap.dedent('''
+        import builtins
+        _real = builtins.__import__
+        BLOCKED = {"fastapi", "starlette", "uvicorn", "jinja2"}
+
+        def guard(name, *args, **kwargs):
+            if name.split(".")[0] in BLOCKED:
+                raise ModuleNotFoundError("No module named " + repr(name))
+            return _real(name, *args, **kwargs)
+
+        builtins.__import__ = guard
+        import recruit.bootstrap
+        import recruit.names
+        import recruit.hosting
+        import recruit.ingest
+        import recruit.validate
+        import recruit.db.auth_repository
+        print("ok")
+    ''')
+    result = subprocess.run([sys.executable, "-c", program],
+                            capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    assert "ok" in result.stdout

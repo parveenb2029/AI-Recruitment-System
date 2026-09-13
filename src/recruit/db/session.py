@@ -36,10 +36,37 @@ DRIVER_HELP = {
 }
 
 
+def normalise_url(url: str) -> str:
+    """Make a hosting platform's Postgres URL usable by SQLAlchemy 2.
+
+    Every managed Postgres — Render, Heroku, Railway, Fly — hands out a URL in
+    one of two shapes, and neither one works here unchanged:
+
+        postgres://user:pass@host/db      the legacy libpq spelling; SQLAlchemy
+                                          removed support for it in 1.4
+        postgresql://user:pass@host/db    valid, but the bare scheme means
+                                          psycopg2, and this project ships
+                                          psycopg 3 because psycopg2 needs a
+                                          compiler (hard rule 9)
+
+    Both become `postgresql+psycopg://`. The alternative is asking every
+    operator to hand-edit a URL the platform generated for them, and getting a
+    `ModuleNotFoundError: psycopg2` when they do not. A scheme that already
+    names a driver is left exactly as it is — someone who asked for
+    `postgresql+asyncpg` meant it.
+    """
+    scheme, separator, rest = url.partition("://")
+    if not separator or "+" in scheme:
+        return url
+    if scheme in ("postgres", "postgresql"):
+        return f"postgresql+psycopg://{rest}"
+    return url
+
+
 def create_engine_from_config(config: Any | None = None, url: str | None = None,
                               echo: bool = False) -> Engine:
     """DATABASE_URL wins over config, so a container can override without edits."""
-    resolved = (
+    resolved = normalise_url(
         url
         or os.environ.get("DATABASE_URL")
         or (config.get("adapters.database.url") if config is not None else None)

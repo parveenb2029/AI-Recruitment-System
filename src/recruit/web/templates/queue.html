@@ -1,45 +1,56 @@
 {% extends "base.html" %}
 {% block title %}Resumes to check{% endblock %}
-{% block subtitle %}<span class="muted">{{ rows|length }} waiting &middot; least certain first</span>{% endblock %}
+{% block subtitle %}<span class="where">{{ rows|length }} waiting &middot; least certain first</span>{% endblock %}
 {% block head %}
 <style>
-.intro{font-size:13.5px;color:var(--ink-2);margin:0 0 14px;max-width:74ch}
-table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--rule);border-radius:3px;overflow:hidden}
-th{text-align:left;font-size:12px;font-weight:600;color:var(--muted);padding:11px 14px;border-bottom:1px solid var(--rule-strong)}
-td{padding:12px 14px;border-bottom:1px solid var(--rule);vertical-align:top}
-tr:last-child td{border-bottom:none}
+.head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:22px;flex-wrap:wrap}
+.head .lede{margin:0;max-width:64ch}
+tr.row{cursor:pointer;transition:background .1s ease}
 tr.row:hover td{background:var(--surface-2)}
-tr.row{cursor:pointer}
-.name{font-weight:600}
-.job{font-size:12.5px;color:var(--muted)}
-.howsure{font-weight:600;font-size:13.5px}
+tr.row:hover .name{color:var(--accent-ink)}
+.name{font-weight:700;font-size:15.5px;transition:color .1s ease}
+.job{font-size:13px;color:var(--muted);margin-top:2px}
+.howsure{font-weight:700;font-size:14.5px;display:block}
 .c-lo{color:var(--crit)} .c-mid{color:var(--warn)} .c-hi{color:var(--ok)}
-.score{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
-.bar-track{width:88px;height:5px;background:var(--surface-2);border-radius:3px;overflow:hidden;display:block;margin-top:5px}
-.bar-fill{height:100%;display:block}
-.empty{background:var(--surface);border:1px solid var(--rule);border-radius:3px;padding:48px;text-align:center;color:var(--muted)}
-.reasons{margin:0;padding:0;list-style:none;font-size:13px}
-.reasons li{padding:1px 0}
-.reasons li::before{content:"• ";color:var(--warn)}
+.score{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.bar-track{width:104px;height:6px;background:var(--surface-3);border-radius:999px;overflow:hidden;display:block;margin-top:7px}
+.bar-fill{height:100%;display:block;border-radius:999px}
+.empty{
+  background:var(--surface);border:1px solid var(--rule);border-radius:var(--r);
+  box-shadow:var(--shadow);padding:64px 32px;text-align:center;
+}
+.empty .big{font-size:34px;margin-bottom:10px}
+.reasons{margin:0;padding:0;list-style:none;font-size:13.5px;color:var(--ink-2)}
+.reasons li{padding:2px 0 2px 16px;position:relative}
+.reasons li::before{content:"";position:absolute;left:0;top:10px;width:5px;height:5px;border-radius:50%;background:var(--warn)}
+.reasons li.flag{color:var(--crit);font-weight:700}
+.reasons li.flag::before{background:var(--crit)}
+.reasons li.none{color:var(--muted)}
+.reasons li.none::before{background:var(--rule-strong)}
 .tech-cell{display:none;font-family:var(--mono);font-size:11px;color:var(--muted);word-break:break-all}
 body.show-tech .tech-cell{display:table-cell}
-.toggle{font-size:12.5px;color:var(--muted);float:right}
 </style>
 {% endblock %}
 {% block content %}
 {% if not rows %}
   <div class="empty">
-    <p style="margin:0 0 6px;color:var(--ink)">Nothing to check right now.</p>
-    <p style="margin:0;font-size:13px">Resumes appear here when the system is
+    <div class="big">&#9749;</div>
+    <p style="margin:0 0 6px;color:var(--ink);font-size:17px;font-weight:600">Nothing to check right now.</p>
+    <p style="margin:0;font-size:14px;color:var(--muted)">Resumes appear here when the system is
       unsure about something and wants a person to look.</p>
   </div>
 {% else %}
-<p class="intro">
+<div class="head">
+  <div>
+    <h1 class="page">Resumes to check</h1>
+    <p class="lede">
+      These have been read, but the system wants a person to check them before
+      they go any further. Nothing here has been accepted or rejected yet.
+    </p>
+  </div>
   <label class="toggle"><input type="checkbox" id="tech"> Show technical details</label>
-  These resumes have been read, but the system wants a person to check them
-  before they go any further. Nothing here has been accepted or rejected yet.
-  Click a row to open it.
-</p>
+</div>
+<div class="card">
 <table>
   <thead><tr>
     <th>Candidate</th><th>How sure the system is</th><th>What to look at</th>
@@ -55,16 +66,16 @@ body.show-tech .tech-cell{display:table-cell}
       <td>
         {% set c = r.confidence %}
         <span class="howsure {% if c < 0.5 %}c-lo{% elif c < threshold %}c-mid{% else %}c-hi{% endif %}">{{ c|confidence_phrase }}</span>
-        <span class="score">({{ '%.2f'|format(c) }} out of 1)</span>
+        <span class="score">{{ '%.2f'|format(c) }} out of 1</span>
         <span class="bar-track"><span class="bar-fill" style="width:{{ (c*100)|round|int }}%;background:{% if c < 0.5 %}var(--crit){% elif c < threshold %}var(--warn){% else %}var(--ok){% endif %}"></span></span>
       </td>
       <td>
         <ul class="reasons">
           {% if r.hallucination %}
-            <li style="color:var(--crit)"><strong>{{ 'POTENTIAL_HALLUCINATION'|review_reason }}</strong></li>
+            <li class="flag">{{ 'POTENTIAL_HALLUCINATION'|review_reason }}</li>
           {% endif %}
           {% for reason in r.reasons %}<li>{{ reason|review_reason }}</li>{% endfor %}
-          {% if not r.reasons and not r.hallucination %}<li style="color:var(--muted)">Nothing specific — a routine check</li>{% endif %}
+          {% if not r.reasons and not r.hallucination %}<li class="none">Nothing specific — a routine check</li>{% endif %}
         </ul>
       </td>
       <td class="tech-cell">{{ r.run.id }}</td>
@@ -72,7 +83,8 @@ body.show-tech .tech-cell{display:table-cell}
   {% endfor %}
   </tbody>
 </table>
-<p class="muted" style="font-size:12.5px;margin-top:12px;max-width:74ch">
+</div>
+<p class="footnote">
   The ones the system is least sure about are at the top, so the resumes most
   likely to be wrong get looked at first.
 </p>

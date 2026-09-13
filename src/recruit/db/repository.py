@@ -19,6 +19,13 @@ from .session import session_scope  # re-exported for convenience
 __all__ = ["Repository", "session_scope"]
 
 MASK_KEYS = {"email", "phone", "full_name", "linkedin_url", "address", "date_of_birth"}
+# `account` is deliberately NOT in that set, and the name exists to make the
+# exemption visible rather than smuggled. BR-06 protects *candidates*: people who
+# did not choose to be in the system and whose details a reviewer only needs to
+# know were present. An operator account is the opposite — it is system identity,
+# the same class of fact as the `actor` column, which has always stored a staff
+# address in full. "Boss gave someone access to candidate data" answers nothing;
+# naming who was given access is the entire point of recording it.
 
 
 def mask_pii(payload: Any) -> Any:

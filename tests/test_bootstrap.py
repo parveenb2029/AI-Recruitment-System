@@ -142,16 +142,28 @@ def test_config_path_honours_the_environment(tmp_path, monkeypatch):
 @pytest.mark.skipif(shutil.which("bash") is None,
                     reason="no bash on this machine — Windows without Git Bash or WSL")
 def test_entrypoint_is_valid_shell():
+    """`bash -n` parses without executing.
+
+    A typo in the entrypoint does not surface until a container refuses to
+    start, which is the worst place to find it.
+
+    **The script is fed through stdin rather than named as an argument.** A
+    Windows path is drive-letter, colon, backslashes — and the bash doing the
+    parsing is a Linux one, WSL or Git Bash, which reads every backslash as an
+    escape character. It ate the separators, reported the resulting run-together
+    name as missing, and the test failed on a machine where nothing was wrong.
+    Feeding the bytes in avoids the question of whose path syntax wins.
+
+    Skipped where bash is absent: the entrypoint only ever runs inside a Linux
+    container, so a machine with no shell to check it with says nothing about
+    whether the file is correct. CI runs on Linux and always checks it.
+    """
     script = ROOT / "docker" / "entrypoint.sh"
     assert script.is_file()
-    # bash -n parses without executing. A typo here does not surface until a
-    # container refuses to start, which is the worst place to find it.
-    #
-    # Skipped rather than failed where bash is absent: the entrypoint only ever
-    # runs inside a Linux container, so a Windows machine having no shell to
-    # check it with says nothing about whether the file is correct. CI runs on
-    # Linux and does check it.
-    assert subprocess.run(["bash", "-n", str(script)]).returncode == 0
+
+    result = subprocess.run(["bash", "-n"], input=script.read_bytes(),
+                            capture_output=True)
+    assert result.returncode == 0, result.stderr.decode(errors="replace")
 
 
 def test_compose_binds_the_console_to_localhost_only():

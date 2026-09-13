@@ -9,13 +9,15 @@ Project context for AI coding sessions. Read this first, every session.
 An AI-assisted recruitment pipeline: resume in, ranked and evidence-cited shortlist
 out, with a human reviewing every decision that affects a candidate.
 
-**Current state (2026-08-23):** was a documentation blueprint; now a working
+**Current state (2026-09-12):** was a documentation blueprint; now a working
 product. `src/recruit/` runs ingest → extract → validate → persist → review →
 match, behind real authentication with role-based access control, with a
-bias-audit harness, a compliance pack, a one-command Docker quickstart, and a
-console written in plain English rather than field names. 175 tests pass.
+bias-audit harness, a compliance pack, a one-command Docker quickstart, a
+console written in plain English rather than field names, and a one-click path
+to a copy on your own server with your own accounts. 256 tests pass.
 
-Phases 0–3 complete (the vertical slice runs end to end), plus 4.2, 5.1 and 5.2.
+Phases 0–3 complete (the vertical slice runs end to end), plus 4.2, 5.1, 5.2
+and 5.3.
 Remaining: the golden set (4.1) and confidence calibration (4.3, blocked on it).
 
 The two scripts under `tools/legacy/` are the original document generators —
@@ -198,6 +200,7 @@ artifact. Summary:
 | 6.0 | Scope amendment | **done** |
 | 6.1 | Capture real job-board emails | **operator's homework** — blocks 6.3 |
 | 6.2a | Mail reading: MIME, attachments, filenames, provenance | **done** |
+| 5.3 | Self-hosting: browser account management, public-deploy guard, Render blueprint | **done** — the deploy itself unverified |
 | 6.2b–6.12 | Gmail connection, per-source parsers, landing zone, safety gate, screening | not started — `docs/intake_playbook.md` |
 
 ---
@@ -220,6 +223,8 @@ lands. Do not assume anything here exists.
 | Confidence calibration | Phase 2 | `confidence.calibrated: false` in config. Thresholds are round numbers, not measurements. Blocked on the golden set. | Phase 4.3 |
 | ~~**Plain-language console copy**~~ | Phase 3.5 / 5.1 | **Closed 2026-08-23.** `web/humanize.py` plus rewritten templates; the technical values are hidden behind a toggle, not removed, and `tests/test_humanize.py` fails if either half regresses. Original entry kept below for the reasoning. |
 | ~~Plain-language console copy (original entry)~~ | Phase 3.5 / 5.1 | **The console is written for engineers and its users are not.** The audit page column heads are `Run`, `Prompt`, `Model`; the rows carry `workflow_run_id`, `prompt_version`, `model_id`, event names like `auth.login_failed`, and a raw Python dict in `detail`. Reviewers will be recruiters and hiring managers — the operator puts it at 99% non-technical. Needs: human sentences per event ("Parveen signed in" / "Sign-in failed — wrong password"), plain column heads, `detail` rendered as fields rather than a dict, and the same pass over the queue, detail, login and error screens. The jargon must survive *somewhere* — LL144 and GDPR Art. 22 evidence depends on run and model identity — so this is a presentation layer over the existing columns, not a schema change: keep the technical values behind a "Show technical details" toggle or an export. | Next available |
+| **Render deploy never performed** | 5.3 | `render.yaml` is parsed and asserted by a test, and everything it configures was run natively against a live server with `RECRUIT_PUBLIC=1` — but no blueprint has ever been submitted to Render. The first click is the acceptance test. Same shape as the Docker image, carried open for a day and then green in CI on the first try. | Operator's next sitting |
+| Refused account changes are not logged | 5.3 | Blocking a lockout raises before anything is written, so an attempt to switch off the last administrator leaves no trace. Successful changes are recorded; refused ones are not, and repeated attempts are the more interesting signal of the two. Small to add — the guard already holds a session — and deliberately not bundled into a change that was already wide. | Next available |
 | Doc de-duplication | — | Sibling docs still 84–92% identical. Not on the critical path to shipping. | Optional cleanup |
 
 **Rule:** when a phase cannot deliver something it promised, add a row here in the
@@ -627,3 +632,79 @@ Append here. Newest last.
   between "downloaded a message" and "published someone's attachment" was one
   `git add -A`. Raw captures live beside it in `raw/`, ignored, never leaving
   the machine that made them. 219 tests pass; ruff clean.
+
+- **2026-09-12** — Self-hosting. Raised by the operator: *"fix the design first so
+  everybody can have their own copy at their server, create their account and so
+  on."* The system was built for one person on one machine and every default
+  said so. Three things changed.
+  **(1) Accounts moved into the browser.** `manage_users` has existed as a
+  permission since Phase 5.1 and was never wired to a route, so adding a
+  colleague meant a terminal — which a one-click deployment does not have.
+  `/team` now adds people, changes roles, resets passwords and switches accounts
+  off, with the guard on the route rather than the link: a recruiter who types
+  the URL gets 403, and there is a test that signs in as one and POSTs to all
+  three endpoints. Passwords are generated and shown once, never emailed and
+  never stored readable. **The lockout guard is the part that matters**:
+  `_last_active_admin` refuses to deactivate or demote the last working
+  administrator, and a deactivated admin does not count as cover. On a hosted
+  instance that mistake is unrecoverable — no shell, no fix, redeploy and lose
+  the data.
+  **(2) A public deployment with no sign-in screen now refuses to start.**
+  `src/recruit/hosting.py`. The shipped config says
+  `adapters.auth.provider: single_user`, which means *no login at all* — correct
+  on a laptop, and on a public URL a list of everyone who applied, readable by
+  anyone with the address. Nothing in the codebase knew the difference because
+  until now there was nowhere to deploy it; a deploy button makes that gap
+  reachable by accident. Hosting settings are read from the environment rather
+  than `config/organization.yaml`, because that file is gitignored and a hosted
+  operator has a dashboard, not a shell. Render, Fly, Railway, Heroku, Cloud Run
+  and Azure are detected by their own env vars so the protection does not depend
+  on reading the README, `RECRUIT_PUBLIC` overrides the detection in both
+  directions, and `RECRUIT_ALLOW_OPEN_CONSOLE=1` exists so an open demo is a
+  decision somebody made rather than a default they inherited. The session
+  cookie defaults to `Secure` on a public deployment regardless of what the
+  config says — being wrong that way means nobody can sign in over plain HTTP,
+  which is loud and reversible; being wrong the other way puts a session cookie
+  in clear text. The refusal is caught in `recruit.web.__main__` and printed as
+  a sentence, because the person reading it is looking at a hosting dashboard,
+  not a traceback.
+  **(3) `render.yaml` and a deploy button.** Postgres plus the existing
+  Dockerfile, `sync: false` on the admin email and the API key so Render prompts
+  for them at creation and nothing secret is written into a public repository,
+  and no `RECRUIT_ADMIN_PASSWORD` at all — it is generated on first start and
+  printed to the service log once. A test parses the blueprint and fails if
+  authentication is ever switched off in it, because the blueprint is the button
+  and if it is wrong then everyone gets it wrong. `db.session.normalise_url`
+  rewrites `postgres://` and bare `postgresql://` to `postgresql+psycopg://`:
+  every managed platform emits one of those, neither works with the psycopg 3
+  this project ships, and the alternative is every operator hand-editing a URL
+  the platform generated and getting `ModuleNotFoundError: psycopg2` when they
+  do not.
+  **Three defects worth keeping.** (a) The first audit sentence read *"Boss
+  created an account for S***[14]."* — `append_audit` masks any key named
+  `email` under BR-06. That rule protects *candidates*; an operator account is
+  system identity, the same class of fact as the `actor` column, which has
+  always stored a staff address in full. The key is now `account`, and the
+  exemption is a named comment beside `MASK_KEYS` rather than something a future
+  reader has to infer. The exact address moved into the technical block, not
+  out of the page — two different addresses can tidy to the same display name.
+  (b) **A browser screenshot caught what 256 tests did not**: the people table
+  showed `Priya.Nair` while the activity log called the same account
+  `Priya Nair`, because the route fell back to `email.split("@")[0]` and the log
+  went through `humanize`. Fixing it by importing `humanize` into `bootstrap`
+  would have dragged FastAPI into a core CLI and broken hard rule 9, so the
+  tidying rule moved to `recruit/names.py` (standard library only) and
+  `tests/test_packaging.py` now runs bootstrap with fastapi, starlette, uvicorn
+  and jinja2 blocked at import. That is the fourth packaging defect invisible to
+  a machine that already had the libraries. (c) The entrypoint ignored `PORT`,
+  which every managed platform sets and expects to be listened on; a service
+  that ignores it is marked unhealthy and restarted forever.
+  Verified by running it, not by asserting it: bootstrap, console, sign-in,
+  `/team`, adding a person, the generated password working, the lockout refusal
+  arriving as a 400 with a sentence on screen, the audit rows, and the `Secure`
+  attribute actually present on the cookie — all against a live server with
+  `RECRUIT_PUBLIC=1`, plus four browser screenshots. 256 tests pass; ruff clean;
+  branding gate green. **Not verified**: a real Render deploy. The blueprint is
+  parsed and asserted but has never been submitted to Render, and that is in the
+  deferred register rather than assumed — the same way the Docker image was
+  carried as open for a day until CI built it.

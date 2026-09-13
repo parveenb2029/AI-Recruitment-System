@@ -13,7 +13,10 @@
 set -euo pipefail
 
 APP_HOST="${RECRUIT_HOST:-0.0.0.0}"
-APP_PORT="${RECRUIT_PORT:-8000}"
+# `PORT` is what every managed platform sets and expects to be listened on; a
+# service that ignores it is marked unhealthy and restarted forever. RECRUIT_PORT
+# still wins, so a local override behaves the way the rest of the docs say.
+APP_PORT="${RECRUIT_PORT:-${PORT:-8000}}"
 CONFIG_DIR="/app/config"
 CONFIG_FILE="${CONFIG_DIR}/organization.yaml"
 EXAMPLE_FILE="${CONFIG_DIR}/organization.example.yaml"
@@ -53,11 +56,16 @@ esac
 if [ "${NEEDS_WAIT}" = "1" ]; then
     log "wait     for the database..."
     for attempt in $(seq 1 30); do
+        # Through normalise_url, not create_engine directly: a managed platform
+        # hands out `postgres://` or bare `postgresql://`, and connecting here
+        # with a scheme the rest of the app rewrites would mean this loop passes
+        # and then bootstrap fails on the same database.
         if python -c "
 import os, sys
 from sqlalchemy import create_engine, text
+from recruit.db.session import normalise_url
 try:
-    create_engine(os.environ['DATABASE_URL']).connect().execute(text('SELECT 1'))
+    create_engine(normalise_url(os.environ['DATABASE_URL'])).connect().execute(text('SELECT 1'))
 except Exception:
     sys.exit(1)
 " 2>/dev/null; then

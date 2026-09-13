@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}Who can use this{% endblock %}
+{% block subtitle %}<span class="where">{% if accounts %}{{ accounts|length }} {% if accounts|length == 1 %}person{% else %}people{% endif %}{% endif %}</span>{% endblock %}
+{% block head %}
+<style>
+tr.off td{opacity:.55}
+.name{font-weight:700;font-size:15px}
+.addr{font-size:13px;color:var(--muted);margin-top:1px}
+.acts{display:flex;gap:14px;flex-wrap:wrap;align-items:center;justify-content:flex-end}
+.acts form{display:inline}
+.addrow{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end}
+.addrow .grow{flex:1 1 220px}
+.handover{
+  background:var(--ok-soft);border:1px solid rgba(76,123,72,.35);
+  border-radius:var(--r);padding:20px 22px;margin-bottom:20px;
+}
+.handover h3{margin:0 0 8px;font-size:15px;font-weight:700;color:var(--ok)}
+.creds{
+  font-family:var(--mono);font-size:14.5px;background:var(--surface);
+  border:1px solid var(--rule);border-radius:var(--r-sm);padding:14px 16px;
+  margin:12px 0 0;display:grid;grid-template-columns:max-content 1fr;gap:6px 18px;
+}
+.creds dt{color:var(--muted);font-size:12px;font-family:var(--sans);font-weight:600;align-self:center}
+.creds dd{margin:0;font-weight:700;word-break:break-all}
+.solo{text-align:center;padding:52px 32px}
+.solo .big{font-size:34px;margin-bottom:10px}
+</style>
+{% endblock %}
+{% block content %}
+
+{% if accounts is none %}
+  <div class="card"><div class="inner solo">
+    <div class="big">&#128100;</div>
+    <p style="margin:0 0 6px;font-size:17px;font-weight:600">You're in single-person mode.</p>
+    <p style="margin:0 auto;max-width:52ch;color:var(--muted);font-size:14px">
+      There is one operator and no accounts to manage. To let other people in,
+      set <code>adapters.auth.provider</code> to <code>local</code> in
+      <code>config/organization.yaml</code> and restart.
+    </p>
+  </div></div>
+{% else %}
+
+{% if problem %}
+  <div class="notice bad"><strong>That didn't work.</strong><p style="margin:6px 0 0">{{ problem }}</p></div>
+{% endif %}
+
+{% if invited %}
+  <div class="handover">
+    <h3>Give these details to {{ invited[0] }}</h3>
+    <p style="margin:0;font-size:14px;color:var(--ink-2)">
+      This password is shown <strong>once</strong> and is not stored anywhere we
+      can read it back. Copy it now and send it to them however you normally
+      would. They can change it later.
+    </p>
+    <dl class="creds">
+      <dt>Email</dt><dd>{{ invited[0] }}</dd>
+      <dt>Password</dt><dd>{{ invited[1] }}</dd>
+    </dl>
+  </div>
+{% endif %}
+
+<h1 class="page">Who can use this</h1>
+<p class="lede">
+  Everyone who can sign in to this copy of the system. What each person is
+  allowed to do depends on their role — a recruiter can look at candidates and
+  pass them upwards, but only a hiring manager or administrator can actually
+  approve one.
+</p>
+
+<div class="card">
+  <h2>Add someone</h2>
+  <div class="inner">
+    <form method="post" action="/team/add" class="addrow">
+      <div class="grow">
+        <label class="field" for="email">Their email</label>
+        <input id="email" name="email" type="email" required placeholder="name@yourcompany.com" style="width:100%">
+      </div>
+      <div class="grow">
+        <label class="field" for="display_name">Their name</label>
+        <input id="display_name" name="display_name" type="text" placeholder="optional" style="width:100%">
+      </div>
+      <div>
+        <label class="field" for="role">What they can do</label>
+        <select id="role" name="role">
+          {% for value, label in roles %}
+          <option value="{{ value }}"{% if value == 'recruiter' %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="primary">Create account</button>
+    </form>
+    <p class="footnote" style="margin-top:14px">
+      A password is generated for them and shown to you once. Nobody has to
+      invent one, and there is no email to set up.
+    </p>
+  </div>
+</div>
+
+<div class="card">
+  <h2>People</h2>
+  <table>
+    <thead><tr>
+      <th>Person</th><th>What they can do</th><th>Last signed in</th><th></th>
+    </tr></thead>
+    <tbody>
+    {% for a in accounts %}
+      <tr class="{% if not a.is_active %}off{% endif %}">
+        <td>
+          <div class="name">{{ a.display_name }}
+            {%- if not a.is_active %} <span class="pill p-warn">switched off</span>{% endif %}</div>
+          <div class="addr">{{ a.email }}</div>
+        </td>
+        <td>
+          <form method="post" action="/team/update">
+            <input type="hidden" name="email" value="{{ a.email }}">
+            <input type="hidden" name="action" value="set_role">
+            <select name="role" onchange="this.form.submit()">
+              {% for value, label in roles %}
+              <option value="{{ value }}"{% if value == a.role %} selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </form>
+        </td>
+        <td class="muted" style="font-size:13.5px;padding-top:22px">
+          {% if a.last_login_at %}{{ a.last_login_at.strftime('%d %b %Y') }}
+          {%- else %}Never{% endif %}
+        </td>
+        <td style="padding-top:22px">
+          <div class="acts">
+            <form method="post" action="/team/update">
+              <input type="hidden" name="email" value="{{ a.email }}">
+              <input type="hidden" name="action" value="reset_password">
+              <button type="submit" class="link">Reset password</button>
+            </form>
+            {% if a.is_active %}
+            <form method="post" action="/team/update">
+              <input type="hidden" name="email" value="{{ a.email }}">
+              <input type="hidden" name="action" value="deactivate">
+              <button type="submit" class="link danger">Switch off</button>
+            </form>
+            {% else %}
+            <form method="post" action="/team/update">
+              <input type="hidden" name="email" value="{{ a.email }}">
+              <input type="hidden" name="action" value="reactivate">
+              <button type="submit" class="link">Switch back on</button>
+            </form>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<p class="footnote">
+  Switching someone off signs them out straight away rather than waiting for
+  their session to expire, and it can be undone. Every change on this page —
+  who created an account, who changed a role, who switched someone off — is
+  written to the activity log, which nobody can edit.
+</p>
+
+{% endif %}
+{% endblock %}

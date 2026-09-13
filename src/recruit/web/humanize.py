@@ -27,6 +27,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from ..names import display_name_for
+
 # -- audit events -------------------------------------------------------------
 # (short label for a column, sentence template for the description).
 # `{actor}` is filled with the person's name; `{detail}` clauses are added by
@@ -64,6 +66,28 @@ EVENTS: dict[str, tuple[str, str]] = {
     "match.completed": (
         "Scored against a job",
         "The system compared a candidate against a job's requirements.",
+    ),
+    "user.created": (
+        "Account created",
+        "{actor} created an account for {detail_email}.",
+    ),
+    "user.role_changed": (
+        "Role changed",
+        "{actor} changed what {detail_email} is allowed to do.",
+    ),
+    "user.deactivated": (
+        "Account switched off",
+        "{actor} switched off {detail_email}'s account. They were signed out "
+        "immediately rather than at the end of their session.",
+    ),
+    "user.reactivated": (
+        "Account switched back on",
+        "{actor} restored access for {detail_email}.",
+    ),
+    "user.password_reset": (
+        "Password reset",
+        "{actor} set a new password for {detail_email}, which signed them out "
+        "everywhere.",
     ),
     "retention.purged": (
         "Old records deleted",
@@ -141,17 +165,37 @@ HIDE_BY_EVENT: dict[str, set[str]] = {
     "auth.login_failed": {"reason", "email"},
     # "Seeded: Yes" tells a reviewer nothing they can act on.
     "extraction.completed": {"seeded"},
+    # The sentence names them; the role change is worth spelling out below it.
+    # The exact address is not dropped — it moves to the technical block, where
+    # an auditor needs it character-exact, because two different addresses can
+    # tidy to the same display name.
+    "user.created": {"account"},
+    "user.role_changed": {"account"},
+    "user.deactivated": {"account"},
+    "user.reactivated": {"account"},
+    "user.password_reset": {"account"},
 }
 
 LABELS_BY_EVENT: dict[str, dict[str, str]] = {
     "extraction.completed": {"email": "Candidate's email (partly hidden)"},
+    "user.role_changed": {"from": "Was", "to": "Now"},
 }
+
+# The sentence for these events already names the person, so repeating the
+# address underneath it is noise.
+_USER_EVENTS = (
+    "user.created", "user.role_changed", "user.deactivated",
+    "user.reactivated", "user.password_reset",
+)
 
 # Values that are themselves codes.
 VALUE_MAPS: dict[str, dict[str, str]] = {
     "reason": {
         "invalid_credentials": "The email and password did not match",
     },
+    "from": ROLES,
+    "to": ROLES,
+    "role": ROLES,
 }
 
 DETAIL_LABELS: dict[str, str] = {
@@ -231,8 +275,7 @@ def actor_name(actor: str | None) -> str:
         return "The set-up script"
     if actor == "(blank)":
         return "someone who left the email blank"
-    local = actor.split("@")[0]
-    return local.replace(".", " ").replace("_", " ").title() if "@" in actor else actor
+    return display_name_for(actor)
 
 
 def confidence_phrase(value: float | None) -> str:
@@ -301,8 +344,16 @@ def describe_event(entry: Any) -> str:
 
     raw_actor = getattr(entry, "actor", None) or "(no address given)"
 
+    # Account events are about somebody other than the actor, and the sentence
+    # is meaningless without naming them.
+    detail_email = "someone"
+    detail_value = getattr(entry, "detail", None)
+    if isinstance(detail_value, dict) and detail_value.get("account"):
+        detail_email = actor_name(str(detail_value["account"]))
+
     known = EVENTS.get(event)
-    sentence = (known[1].format(actor=actor, raw_actor=raw_actor) if known
+    sentence = (known[1].format(actor=actor, raw_actor=raw_actor,
+                                detail_email=detail_email) if known
                 else f"{actor}: {_tidy(event)}.")
 
     detail = getattr(entry, "detail", None)

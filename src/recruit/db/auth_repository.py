@@ -7,9 +7,10 @@ obvious which code paths touch credentials.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from ..auth import (
     AuthError,
@@ -21,6 +22,30 @@ from ..auth import (
     verify_password,
 )
 from .models import Session, User
+from .repository import Repository
+
+
+@dataclass(frozen=True)
+class Account:
+    """A user as an administrator needs to see them.
+
+    `Principal` answers "who is this request" and deliberately carries nothing
+    else. A team screen needs more — whether the account still works, when it
+    was last used — and widening Principal to suit one page would put that
+    extra state on every authorization check in the system.
+    """
+
+    user_id: int
+    email: str
+    display_name: str
+    role: str
+    is_active: bool
+    created_at: datetime
+    last_login_at: datetime | None
+
+    @property
+    def has_ever_signed_in(self) -> bool:
+        return self.last_login_at is not None
 
 
 class LocalAuth:
@@ -36,9 +61,50 @@ class LocalAuth:
         self._session_factory = session_factory
         self._session_hours = session_hours
 
+    # -- audit -------------------------------------------------------------
+    @staticmethod
+    def _record(db, event: str, actor: Principal | None, detail: dict) -> None:
+        """Write a user-management action to the append-only log.
+
+        Who was given access to candidate data, by whom, and when, is exactly
+        the kind of question an audit asks — and until now account changes
+        happened on a terminal and left no trace at all. Silent when no actor is
+        supplied, because a first-run bootstrap has nobody to attribute it to.
+        """
+        if actor is None:
+            return
+        Repository(db).append_audit(
+            event=event, actor=actor.email, actor_role=actor.role, detail=detail,
+        )
+
+    @staticmethod
+    def _last_active_admin(db, user: User, *, becoming: str | None = None) -> bool:
+        """Would changing this user leave the system with no working admin?
+
+        The lockout this prevents is permanent. On a one-click deployment there
+        is no terminal to recover from — an administrator who demotes or
+        switches off their own only-admin account can never manage users again,
+        and the fix would be redeploying from scratch.
+        """
+        if user.role != "admin" or becoming == "admin":
+            return False
+        others = db.scalar(
+            select(func.count()).select_from(User).where(
+                User.role == "admin", User.is_active.is_(True), User.id != user.id,
+            )
+        )
+        return not others
+
+    def _get(self, db, email: str) -> User:
+        user = db.scalar(select(User).where(User.email == email.strip().lower()))
+        if user is None:
+            raise AuthError(f"No user with email {email}")
+        return user
+
     # -- user management ---------------------------------------------------
     def create_user(self, email: str, password: str, *, display_name: str,
-                    role: str = "recruiter") -> Principal:
+                    role: str = "recruiter",
+                    actor: Principal | None = None) -> Principal:
         email = email.strip().lower()
         with self._session_factory() as db:
             if db.scalar(select(User).where(User.email == email)):
@@ -48,53 +114,97 @@ class LocalAuth:
                 password_hash=hash_password(password), role=role,
             )
             db.add(user)
+            db.flush()
+            self._record(db, "user.created", actor, {"account": email, "role": role})
             db.commit()
             db.refresh(user)
             return Principal(email=user.email, display_name=user.display_name,
                              role=user.role, user_id=user.id)
 
+    def accounts(self) -> list[Account]:
+        """Everyone, active or not, for the team screen."""
+        with self._session_factory() as db:
+            return [
+                Account(
+                    user_id=u.id, email=u.email, display_name=u.display_name,
+                    role=u.role, is_active=u.is_active,
+                    created_at=u.created_at, last_login_at=u.last_login_at,
+                )
+                for u in db.scalars(
+                    select(User).order_by(User.is_active.desc(), User.email)
+                )
+            ]
+
+    def reactivate(self, email: str, actor: Principal | None = None) -> None:
+        """Switch an account back on.
+
+        Deactivation has to be reversible from wherever it was done. Without
+        this, one mis-click on a self-hosted instance with no terminal means
+        that person is locked out for good.
+        """
+        with self._session_factory() as db:
+            user = self._get(db, email)
+            user.is_active = True
+            self._record(db, "user.reactivated", actor, {"account": user.email})
+            db.commit()
+
     def set_password(self, email: str, password: str, *,
-                     revoke_sessions: bool = True) -> None:
+                     revoke_sessions: bool = True,
+                     actor: Principal | None = None) -> None:
         """Change a password.
 
         Revokes live sessions by default. A password change usually means the
         old one is suspect, and leaving sessions open would defeat the point.
         """
         with self._session_factory() as db:
-            user = db.scalar(select(User).where(User.email == email.strip().lower()))
-            if user is None:
-                raise AuthError(f"No user with email {email}")
+            user = self._get(db, email)
             user.password_hash = hash_password(password)
             if revoke_sessions:
                 now = datetime.now(UTC)
                 for session in user.sessions:
                     if session.revoked_at is None:
                         session.revoked_at = now
+            # The password itself is never recorded — only that it was changed,
+            # by whom, and for whom.
+            self._record(db, "user.password_reset", actor, {"account": user.email})
             db.commit()
 
-    def set_role(self, email: str, role: str) -> None:
+    def set_role(self, email: str, role: str,
+                 actor: Principal | None = None) -> None:
         with self._session_factory() as db:
-            user = db.scalar(select(User).where(User.email == email.strip().lower()))
-            if user is None:
-                raise AuthError(f"No user with email {email}")
+            user = self._get(db, email)
+            if self._last_active_admin(db, user, becoming=role):
+                raise AuthError(
+                    "This is the only administrator left. Give someone else the "
+                    "administrator role first, or nobody will be able to manage "
+                    "accounts afterwards."
+                )
+            was = user.role
             user.role = role
+            self._record(db, "user.role_changed", actor,
+                         {"account": user.email, "from": was, "to": role})
             db.commit()
 
-    def deactivate(self, email: str) -> None:
+    def deactivate(self, email: str, actor: Principal | None = None) -> None:
         """Deactivate and revoke every live session.
 
         Leaving sessions alive would mean a removed operator keeps working
         until their cookie expires.
         """
         with self._session_factory() as db:
-            user = db.scalar(select(User).where(User.email == email.strip().lower()))
-            if user is None:
-                raise AuthError(f"No user with email {email}")
+            user = self._get(db, email)
+            if self._last_active_admin(db, user):
+                raise AuthError(
+                    "This is the only administrator left. Switching it off would "
+                    "lock everyone out of account management permanently — make "
+                    "someone else an administrator first."
+                )
             user.is_active = False
             now = datetime.now(UTC)
             for session in user.sessions:
                 if session.revoked_at is None:
                     session.revoked_at = now
+            self._record(db, "user.deactivated", actor, {"account": user.email})
             db.commit()
 
     def list_users(self) -> list[Principal]:
@@ -181,7 +291,11 @@ class LocalAuth:
 
 def build_auth(config, session_factory):
     """Construct the configured auth adapter."""
-    provider = config.get("adapters.auth.provider", "single_user") if config else "single_user"
+    # Via `hosting`, not straight off the config: a hosted operator has a
+    # dashboard of environment variables and no file they can edit.
+    from ..hosting import auth_provider
+
+    provider = auth_provider(config)
 
     if provider == "local":
         hours = int(config.get("adapters.auth.local.session_hours", 12)) if config else 12

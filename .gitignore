@@ -98,3 +98,9 @@ $RECYCLE.BIN/
 # ---- Node (review console assets, if any) ----
 node_modules/
 npm-debug.log*
+
+# ---- Files delivered into the repo by a desktop assistant ----
+# Screenshots and working files land here when they are sent to this machine.
+# They are correspondence about the project, not part of it, and a public
+# repository is the wrong place for whatever happened to be on screen.
+Claude outputs/

@@ -1,0 +1,88 @@
+# One-click deploy: your own copy, on your own server, with your own accounts.
+#
+# Render reads this file when you click "Deploy to Render" in the README, or
+# when you point a new Blueprint at your fork. It creates two things: a Postgres
+# database and a web service running this repository's Dockerfile, wired
+# together. Nothing is shared with anyone else's copy — the database is yours,
+# the candidates in it are yours, and nobody but the accounts you create can
+# sign in.
+#
+# WHAT IT WILL ASK YOU FOR
+#
+#   Administrator email   The first account. You sign in as this.
+#   Anthropic API key     Optional. Leave it blank to try the system with the
+#                         fake model on the sample resumes; add it later, in the
+#                         dashboard, when you want to process a real one.
+#
+# The administrator PASSWORD is not asked for and is not set here. It is
+# generated on first start and printed once to the service log — open Logs in
+# the Render dashboard immediately after the first deploy and copy it. A
+# password nobody chose is a password nobody reused, and a password that is not
+# in this file is a password that cannot be committed to a public repository.
+#
+# WHAT IT COSTS
+#
+# The free plans are enough to try it. Render's free Postgres expires after 30
+# days and free web services sleep when idle, so the first request after a quiet
+# spell is slow. For anything real, change `plan: free` to `starter` on both.
+#
+# BEFORE YOU PUT REAL CANDIDATES IN IT
+#
+# Read the "Before you use this on real candidates" section of the README. In
+# short: no accuracy figure has been measured, no DPIA has been performed, and
+# the bias harness is not an independent LL144 audit.
+
+databases:
+  - name: recruit-db
+    databaseName: recruit
+    user: recruit
+    plan: free
+
+services:
+  - type: web
+    name: recruit-console
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      # Wired automatically from the database above — you never see or paste
+      # it. Render hands out a bare `postgresql://` URL, which SQLAlchemy reads
+      # as "use psycopg2"; this image ships psycopg 3, so `db.session`
+      # normalises the scheme rather than making you edit a generated URL.
+      - key: DATABASE_URL
+        fromDatabase:
+          name: recruit-db
+          property: connectionString
+
+      # This is the setting that makes a hosted copy safe. The shipped config
+      # file says `single_user`, which means no sign-in screen at all — correct
+      # on a laptop, a disclosure of every applicant on a public URL. The app
+      # refuses to start without this on a platform it can tell is public.
+      - key: RECRUIT_AUTH_PROVIDER
+        value: local
+
+      # Render terminates TLS, so the browser is always on HTTPS.
+      - key: RECRUIT_SECURE_COOKIE
+        value: "1"
+
+      # Asked for once, when the Blueprint is first created. Render does not
+      # ask again on later deploys; change it in the dashboard.
+      - key: RECRUIT_ADMIN_EMAIL
+        sync: false
+
+      # Optional, and deliberately not in any file. The repository is public;
+      # a key committed to it is a key to rotate. Paste it into the dashboard —
+      # Render stores it encrypted and never shows it in a build log.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+
+      # The sample queue, so the first screen is not empty. Set this to 0 in
+      # the dashboard once you have real work in it.
+      - key: RECRUIT_SEED
+        value: "1"
+
+      # Render sets RENDER=true itself, so the safety check would fire anyway.
+      # Stated explicitly so the reason is readable here rather than inferred.
+      - key: RECRUIT_PUBLIC
+        value: "1"

@@ -24,6 +24,8 @@ import sys
 from .db.auth_repository import LocalAuth
 from .db.migrations import create_all
 from .db.session import create_engine_from_config, make_session_factory
+from .hosting import auth_provider
+from .names import display_name_for
 
 # Long enough that the printed password is not worth attacking, short enough to
 # retype from a terminal if the operator does not copy-paste.
@@ -70,7 +72,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.schema_only:
         return 0
 
-    provider = config.get("adapters.auth.provider", "single_user") if config else "single_user"
+    provider = auth_provider(config)
     if provider != "local":
         # Not a failure. `single_user` is a legitimate choice for a laptop demo,
         # and creating accounts for an adapter that never reads them would be
@@ -102,7 +104,7 @@ def main(argv: list[str] | None = None) -> int:
     auth.create_user(
         email,
         password,
-        display_name=args.name or email.split("@")[0],
+        display_name=args.name or display_name_for(email),
         role=args.role,
     )
 

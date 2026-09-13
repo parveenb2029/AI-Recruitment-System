@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import secrets
 from pathlib import Path
 from typing import Any
 
@@ -12,7 +13,8 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..auth import PermissionDenied, Principal
+from .. import hosting
+from ..auth import ROLES, AuthError, PermissionDenied, Principal
 from ..db.auth_repository import build_auth
 from ..db.models import AuditLog, Document, ReviewTask, WorkflowRun
 from ..db.repository import Repository
@@ -51,6 +53,11 @@ TEMPLATES = Path(__file__).resolve().parent / "templates"
 # The wording lives in `humanize` so the dropdown, the audit sentence, and the
 # rejection summary cannot drift into three different phrasings of one reason.
 REJECT_REASONS = list(humanize.REJECT_REASONS.items())
+
+# Roles an administrator can assign, with the wording the console uses. Built
+# from the auth module's ROLES so a new role cannot appear in one place and not
+# the other.
+ROLE_CHOICES = [(r, humanize.ROLES.get(r, r)) for r in ROLES]
 
 
 def create_app(
@@ -293,7 +300,7 @@ def create_app(
             SESSION_COOKIE, token,
             httponly=True,       # not readable by JavaScript
             samesite="lax",      # not sent on cross-site POSTs
-            secure=bool(config.get("adapters.auth.local.secure_cookie", False))
+            secure=hosting.secure_cookie(config)
             if config else False,
             max_age=60 * 60 * 12,
         )
@@ -324,6 +331,93 @@ def create_app(
         return templates.TemplateResponse(
             request, "audit.html", {"entries": entries, "principal": principal},
         )
+
+    # -- team ---------------------------------------------------------------
+    # The permission `manage_users` has existed on the admin role since Phase
+    # 5.1 and was never wired to anything, because accounts were created from a
+    # terminal. That assumption breaks the moment someone deploys this with one
+    # click and has no terminal to use.
+    def _accounts_or_none():
+        """Accounts, or None when the configured adapter has no notion of them.
+
+        `single_user` mode has one hardcoded operator and no user table. Showing
+        an empty team page there would suggest everyone had been deleted.
+        """
+        lister = getattr(auth, "accounts", None)
+        return lister() if callable(lister) else None
+
+    def _team_page(request: Request, principal: Principal, *,
+                   invited: tuple[str, str] | None = None,
+                   problem: str | None = None,
+                   status_code: int = 200):
+        return templates.TemplateResponse(
+            request, "team.html",
+            {
+                "accounts": _accounts_or_none(),
+                "roles": ROLE_CHOICES,
+                "principal": principal,
+                "invited": invited,
+                "problem": problem,
+            },
+            status_code=status_code,
+        )
+
+    @app.get("/team", response_class=HTMLResponse)
+    def team(request: Request,
+             principal: Principal = Depends(require("manage_users"))):
+        return _team_page(request, principal)
+
+    @app.post("/team/add", response_class=HTMLResponse)
+    def team_add(request: Request,
+                 email: str = Form(...),
+                 display_name: str = Form(default=""),
+                 role: str = Form(default="recruiter"),
+                 principal: Principal = Depends(require("manage_users"))):
+        # The password is generated rather than chosen. An administrator
+        # inventing passwords for other people produces weak, reused ones, and
+        # this way there is nothing to email — it is shown once, on this page.
+        password = secrets.token_urlsafe(12)
+        try:
+            auth.create_user(
+                email, password,
+                # Through humanize, not `email.split("@")[0]`: the raw local
+                # part put "Priya.Nair" in the people table while the audit log
+                # for the same account said "Priya Nair". One tidying rule, in
+                # one place, or the two screens disagree about who someone is.
+                display_name=display_name.strip() or humanize.actor_name(email),
+                role=role, actor=principal,
+            )
+        except AuthError as denied:
+            return _team_page(request, principal, problem=str(denied),
+                              status_code=400)
+        return _team_page(request, principal,
+                          invited=(email.strip().lower(), password))
+
+    @app.post("/team/update", response_class=HTMLResponse)
+    def team_update(request: Request,
+                    email: str = Form(...),
+                    action: str = Form(...),
+                    role: str = Form(default=""),
+                    principal: Principal = Depends(require("manage_users"))):
+        try:
+            if action == "set_role":
+                auth.set_role(email, role, actor=principal)
+            elif action == "deactivate":
+                auth.deactivate(email, actor=principal)
+            elif action == "reactivate":
+                auth.reactivate(email, actor=principal)
+            elif action == "reset_password":
+                password = secrets.token_urlsafe(12)
+                auth.set_password(email, password, actor=principal)
+                return _team_page(request, principal,
+                                  invited=(email.strip().lower(), password))
+            else:
+                raise HTTPException(status_code=400,
+                                    detail=f"Unknown action: {action}")
+        except AuthError as denied:
+            return _team_page(request, principal, problem=str(denied),
+                              status_code=400)
+        return _team_page(request, principal)
 
     @app.get("/health")
     def health():

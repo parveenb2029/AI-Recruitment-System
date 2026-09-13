@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Checking a resume{% endblock %}
 {% block subtitle %}
-<span class="muted">for {{ run.requisition_id or 'no job specified' }}</span>
+<span class="where">for {{ run.requisition_id or 'no job specified' }}</span>
 <span class="pill {% if run.confidence_aggregate < threshold %}p-warn{% else %}p-ok{% endif %}">
   {{ run.confidence_aggregate|confidence_phrase }}</span>
 {% if 'POTENTIAL_HALLUCINATION' in (envelope.flags or []) %}
@@ -10,48 +10,53 @@
 
 {% block head %}
 <style>
-.split{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
 @media (max-width:1000px){.split{grid-template-columns:1fr}}
-.panel{background:var(--surface);border:1px solid var(--rule);border-radius:3px;overflow:hidden}
-.panel h2{font-size:13px;font-weight:600;color:var(--ink-2);margin:0;padding:11px 14px;border-bottom:1px solid var(--rule)}
-.tech-inline{display:none;color:var(--muted);font-size:11px}
+.panel{background:var(--surface);border:1px solid var(--rule);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+.panel h2{font-size:14px;font-weight:700;color:var(--ink-2);margin:0;padding:15px 20px;border-bottom:1px solid var(--rule)}
+.tech-inline{display:none;color:var(--muted);font-size:11.5px}
 body.show-tech .tech-inline{display:inline}
-.techbox{display:none;background:var(--surface);border:1px solid var(--rule);border-radius:3px;padding:12px 14px;margin-top:14px}
+.techbox{display:none;background:var(--surface);border:1px solid var(--rule);border-radius:var(--r);box-shadow:var(--shadow);padding:16px 20px;margin-top:18px}
 body.show-tech .techbox{display:block}
-.techbox dl{margin:0;display:grid;grid-template-columns:max-content 1fr;gap:2px 14px;font-family:var(--mono);font-size:11px;color:var(--muted)}
+.techbox dl{margin:0;display:grid;grid-template-columns:max-content 1fr;gap:3px 16px;font-family:var(--mono);font-size:11.5px;color:var(--muted)}
 .techbox dd{margin:0;word-break:break-all}
-.legend{font-size:12px;color:var(--muted);padding:9px 14px;border-bottom:1px solid var(--rule);background:var(--surface-2)}
-.toggle{font-size:12.5px;color:var(--muted);margin-left:auto}
-.source{font-family:var(--mono);font-size:12.5px;line-height:1.75;white-space:pre-wrap;word-break:break-word;padding:14px;max-height:70vh;overflow-y:auto;margin:0}
-mark{background:var(--accent-soft);color:inherit;border-bottom:2px solid var(--accent);padding:1px 0;border-radius:2px;cursor:pointer}
-mark.on{background:var(--warn-soft);border-bottom-color:var(--warn);box-shadow:0 0 0 3px var(--warn-soft)}
+.legend{font-size:12.5px;color:var(--muted);padding:11px 20px;border-bottom:1px solid var(--rule);background:var(--surface-2)}
+.toggle{margin-left:auto}
+.source{font-family:var(--mono);font-size:12.5px;line-height:1.85;white-space:pre-wrap;word-break:break-word;padding:18px 20px;max-height:70vh;overflow-y:auto;margin:0;color:var(--ink-2)}
+mark{background:var(--accent-soft);color:var(--ink);border-bottom:2px solid var(--accent);padding:1px 0;border-radius:3px;cursor:pointer}
+mark.on{background:var(--warn-soft);border-bottom-color:var(--warn);box-shadow:0 0 0 4px var(--warn-soft)}
 .fields{max-height:70vh;overflow-y:auto}
-.f{display:grid;grid-template-columns:130px 1fr auto;gap:10px;align-items:baseline;padding:8px 14px;border-bottom:1px solid var(--rule)}
+.f{display:grid;grid-template-columns:138px 1fr auto;gap:14px;align-items:baseline;padding:11px 20px;border-bottom:1px solid var(--rule);transition:background .1s ease}
 .f:last-child{border-bottom:none}
 .f.linked{cursor:pointer}
 .f.linked:hover{background:var(--surface-2)}
 .f.on{background:var(--warn-soft)}
-.f .k{font-size:12px;color:var(--muted)}
+.f .k{font-size:12.5px;color:var(--muted);font-weight:600}
 .f .v{word-break:break-word}
-.f .c{font-family:var(--mono);font-size:11px;font-variant-numeric:tabular-nums}
-.c-lo{color:var(--crit);font-weight:600} .c-mid{color:var(--warn)} .c-hi{color:var(--muted)}
-.f.low{border-left:3px solid var(--warn);padding-left:11px}
-.actions{position:sticky;bottom:0;background:var(--surface);border:1px solid var(--rule);border-radius:3px;padding:14px;margin-top:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.b-ok{background:var(--ok);border-color:var(--ok);color:#fff}
-.b-no{background:var(--crit);border-color:var(--crit);color:#fff}
-select,textarea{font:inherit;padding:6px 8px;border:1px solid var(--rule-strong);border-radius:3px;background:var(--surface);color:var(--ink)}
-.findings{padding:0 14px 12px}
-.finding{font-size:12.5px;padding:7px 0;border-bottom:1px dashed var(--rule)}
+.f .c{font-family:var(--mono);font-size:11.5px;font-variant-numeric:tabular-nums}
+.c-lo{color:var(--crit);font-weight:700} .c-mid{color:var(--warn)} .c-hi{color:var(--muted)}
+.f.low{border-left:3px solid var(--warn);padding-left:17px}
+.actions{
+  position:sticky;bottom:16px;background:var(--surface);border:1px solid var(--rule-strong);
+  border-radius:var(--r);box-shadow:var(--shadow-lift);padding:16px 20px;margin-top:20px;
+  display:flex;gap:12px;align-items:center;flex-wrap:wrap;
+}
+.b-ok{background:var(--ok);border-color:var(--ok);color:var(--on-accent)}
+.b-ok:hover{background:var(--ok);border-color:var(--ok);filter:brightness(.93)}
+.b-no{background:var(--crit);border-color:var(--crit);color:var(--on-accent)}
+.b-no:hover{background:var(--crit);border-color:var(--crit);filter:brightness(.93)}
+.findings{padding:4px 20px 14px}
+.finding{font-size:13.5px;padding:10px 0;border-bottom:1px dashed var(--rule);color:var(--ink-2)}
 .finding:last-child{border-bottom:none}
-.hint{font-size:11.5px;color:var(--muted);margin-left:auto;display:flex;gap:10px;align-items:center}
-dialog{border:1px solid var(--rule-strong);border-radius:4px;background:var(--surface);color:var(--ink);padding:18px;max-width:440px}
-dialog::backdrop{background:rgba(0,0,0,.4)}
+.hint{font-size:12px;color:var(--muted);margin-left:auto;display:flex;gap:12px;align-items:center}
+dialog{border:1px solid var(--rule-strong);border-radius:var(--r);background:var(--surface);color:var(--ink);padding:22px;max-width:460px;box-shadow:var(--shadow-lift)}
+dialog::backdrop{background:rgba(43,39,36,.45)}
 </style>
 {% endblock %}
 
 {% block content %}
 {% if validation.findings %}
-<div class="panel" style="margin-bottom:16px;border-left:3px solid var(--crit)">
+<div class="panel" style="margin-bottom:20px;border-left:3px solid var(--crit)">
   <h2>{{ validation.findings|length }} thing(s) the system flagged</h2>
   <div class="findings">
     {% for f in validation.findings[:8] %}

@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import argparse
+import sys
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -20,6 +21,17 @@ def main(argv: list[str] | None = None) -> int:
         import uvicorn
     except ImportError:
         print('uvicorn is not installed. Run:  pip install -e ".[web]"')
+        return 1
+
+    # Import the app here rather than leaving it to uvicorn. The safety check in
+    # `factory` raises on a public deployment with no sign-in screen, and if
+    # uvicorn is the one to trigger it the operator gets a twelve-frame traceback
+    # with the sentence at the bottom. The person reading it is looking at a
+    # hosting dashboard, not at this source tree.
+    try:
+        import recruit.web.factory  # noqa: F401
+    except RuntimeError as error:
+        print(f"\n  {error}", file=sys.stderr)
         return 1
 
     print(f"  Review console on http://{args.host}:{args.port}")

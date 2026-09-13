@@ -2,33 +2,82 @@
 {% block title %}Sign in{% endblock %}
 {% block head %}
 <style>
-.card{max-width:380px;margin:8vh auto;background:var(--surface);border:1px solid var(--rule);border-radius:4px;padding:26px}
-.card h2{margin:0 0 4px;font-size:1.15rem;letter-spacing:-.01em}
-.card p.sub{margin:0 0 20px;color:var(--muted);font-size:13px}
-label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
-input{width:100%;font:inherit;padding:9px 11px;border:1px solid var(--rule-strong);border-radius:3px;background:var(--surface);color:var(--ink);margin-bottom:14px}
-.err{background:var(--crit-soft);color:var(--crit);border-radius:3px;padding:9px 11px;font-size:13px;margin-bottom:16px}
-button[type=submit]{width:100%;background:var(--accent);border-color:var(--accent);color:#fff;padding:9px}
+/* The first screen anyone sees, including the first screen a stranger who
+   found the repo sees. It gets to say what this is, not just take a password. */
+main{max-width:none;padding:0}
+.split{display:grid;grid-template-columns:1.05fr .95fr;min-height:calc(100vh - 62px)}
+.pitch{
+  background:linear-gradient(160deg,var(--surface-2),var(--paper) 65%);
+  border-right:1px solid var(--rule);
+  padding:64px 56px;display:flex;flex-direction:column;justify-content:center;
+}
+.pitch h1{
+  font-family:var(--display);font-size:38px;line-height:1.15;font-weight:600;
+  margin:0 0 16px;letter-spacing:-.025em;max-width:16ch;
+}
+.pitch p{font-size:16px;color:var(--ink-2);margin:0 0 28px;max-width:44ch}
+.points{list-style:none;padding:0;margin:0;display:grid;gap:14px;max-width:46ch}
+.points li{display:flex;gap:12px;align-items:flex-start;font-size:14.5px;color:var(--ink-2)}
+.points .tick{
+  flex:none;width:22px;height:22px;border-radius:7px;margin-top:1px;
+  background:var(--accent-soft);color:var(--accent-ink);
+  display:grid;place-items:center;font-size:12px;font-weight:700;
+}
+.side{display:flex;align-items:center;justify-content:center;padding:48px 32px}
+.box{width:100%;max-width:370px}
+.box h2{font-family:var(--display);font-size:26px;font-weight:600;margin:0 0 6px;letter-spacing:-.02em}
+.box .sub{margin:0 0 26px;color:var(--muted);font-size:14px}
+.box input{width:100%;margin-bottom:18px}
+.box button[type=submit]{width:100%;padding:11px;font-size:15px}
+@media (max-width:860px){
+  .split{grid-template-columns:1fr;min-height:0}
+  .pitch{padding:40px 24px;border-right:none;border-bottom:1px solid var(--rule)}
+  .pitch h1{font-size:29px}
+  .side{padding:36px 24px}
+}
 </style>
 {% endblock %}
 {% block content %}
-<div class="card">
-  <h2>Sign in</h2>
-  <p class="sub">Every decision you make here is recorded against your name.</p>
-  {% if error %}<div class="err">
-    <strong>That did not work.</strong>
-    <p style="margin:6px 0 0">The email and password did not match an account.
-      Check the email address character by character — a typo in the address
-      looks exactly the same from here as a wrong password, and that is the
-      more common cause.</p>
-  </div>{% endif %}
-  <form method="post" action="/login">
-    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
-    <label for="email">Email</label>
-    <input id="email" name="email" type="email" autocomplete="username" required autofocus>
-    <label for="password">Password</label>
-    <input id="password" name="password" type="password" autocomplete="current-password" required>
-    <button type="submit">Sign in</button>
-  </form>
+<div class="split">
+  <section class="pitch">
+    <h1>Every hiring decision, with its reasons attached.</h1>
+    <p>
+      Resumes are read, checked against the role, and brought to you with the
+      evidence for every claim. You make the call — the system never rejects
+      anyone on its own.
+    </p>
+    <ul class="points">
+      <li><span class="tick">&check;</span>
+        <span>Every extracted detail links back to the exact line of the resume it came from.</span></li>
+      <li><span class="tick">&check;</span>
+        <span>Anything the system is unsure about is flagged for a person rather than guessed at.</span></li>
+      <li><span class="tick">&check;</span>
+        <span>Every decision is written to a log that nobody — including an administrator — can edit.</span></li>
+    </ul>
+  </section>
+
+  <section class="side">
+    <div class="box">
+      <h2>Sign in</h2>
+      <p class="sub">Every decision you make here is recorded against your name.</p>
+      {% if error %}
+      <div class="notice bad">
+        <strong>That did not work.</strong>
+        <p style="margin:6px 0 0">The email and password did not match an account.
+          Check the email address character by character — a typo in the address
+          looks exactly the same from here as a wrong password, and that is the
+          more common cause.</p>
+      </div>
+      {% endif %}
+      <form method="post" action="/login">
+        {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+        <label class="field" for="email">Email</label>
+        <input id="email" name="email" type="email" autocomplete="username" required autofocus>
+        <label class="field" for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+        <button type="submit" class="primary">Sign in</button>
+      </form>
+    </div>
+  </section>
 </div>
 {% endblock %}

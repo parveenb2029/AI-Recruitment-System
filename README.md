@@ -241,6 +241,17 @@ adapters:
 
 Then:
 
+Accounts are managed from the browser, under **Team** in the header — add
+someone, change what they can do, reset a password, switch an account off. Only
+an administrator sees it, and the guard is on the route rather than on the link:
+a recruiter who types `/team` gets 403, not a page.
+
+Two things that page will not let you do, because a hosted copy has no terminal
+to recover from: switch off the last administrator, or demote them. Make someone
+else an administrator first, and the guard lifts.
+
+The same commands still exist for a terminal:
+
 ```bash
 python -m recruit.users add someone@example.com --role recruiter
 python -m recruit.users list
@@ -259,6 +270,69 @@ Four roles, taken from the responsibility tables in the SOPs:
 A recruiter who cannot approve is not a UI decision. The Approve button is
 hidden *and* the route returns 403, and there is a test that renders the button
 for a recruiter and then asserts the POST still fails.
+
+---
+
+## Running your own copy on a server
+
+Everything above runs on one machine. If you want a copy your team can reach —
+your own server, your own database, your own accounts, nobody else's candidates
+anywhere near it — there is a one-click path:
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/parveenb2029/AI-Recruitment-System)
+
+That reads `render.yaml` and creates two things: a Postgres database and a web
+service built from this repository's `Dockerfile`. It asks you for an
+administrator email, and optionally an Anthropic API key. Fork it first if you
+want to change anything — the button deploys whatever repository it points at,
+and you cannot edit this one.
+
+**Open the service log as soon as the first deploy finishes.** The
+administrator password is generated on first start and printed there exactly
+once. It is not in `render.yaml` and not in any file — this repository is
+public, and a password in a public repository is a password to change.
+
+Everything else is the same product you ran locally. The differences a server
+forces are these:
+
+| | On your laptop | On a server |
+|---|---|---|
+| Sign-in | none, by default | **required** — real accounts |
+| Session cookie | plain | `Secure`, HTTPS only |
+| Database | SQLite file | Postgres, managed |
+| API key | `.env` | the dashboard's environment variables, never a file |
+
+**The console refuses to start on a public address with no sign-in screen.** The
+shipped config says `single_user`, which means no login at all — correct on a
+laptop, and on a public URL a list of everyone who applied, readable by anyone
+with the address. So the blueprint sets `RECRUIT_AUTH_PROVIDER=local`, and if
+that is ever missing the service stops with an error that says how to fix it
+rather than booting open. If you genuinely want an open console — a demo with
+nothing but synthetic candidates in it — set `RECRUIT_ALLOW_OPEN_CONSOLE=1` and
+that becomes a decision you made rather than a default you inherited.
+
+### Somewhere other than Render
+
+Any host that runs a container will do. The image needs:
+
+| Variable | |
+|---|---|
+| `DATABASE_URL` | Postgres. `postgres://` and bare `postgresql://` URLs are rewritten for psycopg 3, so paste whatever your platform gives you. |
+| `RECRUIT_AUTH_PROVIDER` | `local` |
+| `RECRUIT_ADMIN_EMAIL` | the first account |
+| `PORT` | if your platform assigns one; otherwise 8000 |
+| `ANTHROPIC_API_KEY` | optional, for real extraction |
+| `RECRUIT_SEED` | `0` once real work is in the queue |
+
+Render, Fly, Railway, Heroku, Cloud Run and Azure App Service are recognised as
+public automatically. On anything else, set `RECRUIT_PUBLIC=1` so the same
+protection applies.
+
+### Free plans
+
+Render's free Postgres expires after 30 days and free web services sleep when
+idle, so the first request after a quiet spell is slow. Fine for trying it;
+change `plan: free` to `starter` in `render.yaml` for anything real.
 
 ---
 
