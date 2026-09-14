@@ -200,9 +200,21 @@ adapters:
 ```
 
 No key, no card, no quota, no request leaving the building. This is the right
-choice for real candidates on a machine you control. The trade is accuracy: a
-model small enough to run on a laptop reads a resume less reliably than a
-frontier one, and you should expect to check more of its work.
+choice for real candidates on a machine you control.
+
+**Be clear about what a small model buys you**, because we measured it rather
+than guessed. Running `llama3.2:3b` on a laptop against the sample resume, over
+several runs: it reads the name, roles and skills correctly every time, and it
+gets a character of the email address wrong about half the time —
+`rahl.sharma@email.com` instead of `rahul`. It does not reliably cite the
+candidate's name, email or phone, so `VR-06` blocks the run and asks for a
+human. **That is the system behaving correctly, and it means a 3B model gives
+you an assistant that always needs checking, not a pipeline that runs itself.**
+
+An intermittent error is worse than a consistent one — it is the kind a reviewer
+stops expecting. If you are processing real applications, use a larger local
+model or a paid key, and read the "before you use this on real candidates"
+section below.
 
 **Paid, and more accurate.** An Anthropic key, a few pence per resume:
 

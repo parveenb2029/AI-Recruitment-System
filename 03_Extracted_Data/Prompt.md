@@ -104,18 +104,17 @@ Include field-level confidence scores for all extracted or inferred fields.
   "human_review_required": false,
   "review_reasons": [],
   "flags": [],
-  "evidence": [
-    {"field": "experience[0].title", "pointer": "/profile/experience/0/title",
-     "snippet": "Senior Software Engineer", "source_location": "page 1",
-     "char_start": 412, "char_end": 436}
-  ],
   "results": {
     "profile": { "...": "candidate profile, shape per schemas/resume.schema.json" },
-    "field_confidence": {
-      "/personal_info/email": 0.98,
-      "/experience/0/start_date": 0.91,
-      "/experience/1/end_date": 0.58
-    },
+    "evidence": [
+      {"field": "experience[0].title", "pointer": "/profile/experience/0/title",
+       "snippet": "Senior Software Engineer", "source_location": "page 1"}
+    ],
+    "field_confidence": [
+      {"pointer": "/personal_info/email", "confidence": 0.98},
+      {"pointer": "/experience/0/start_date", "confidence": 0.91},
+      {"pointer": "/experience/1/end_date", "confidence": 0.58}
+    ],
     "low_confidence_fields": ["/experience/1/end_date"],
     "conflicts": [],
     "extraction_metadata": {
@@ -134,9 +133,29 @@ Include field-level confidence scores for all extracted or inferred fields.
 `confidence_aggregate`. `PARTIAL` is first-class so partial extractions are never
 silently discarded.
 
-`field_confidence` is keyed by **JSON Pointer** into `results.profile` rather than by
-field name. That lets the review console flag every field below the 0.60 threshold
-(`Validation.md` §6) generically, without hardcoding the profile shape.
+`field_confidence` is a **list of `{pointer, confidence}` pairs**, where `pointer` is
+a JSON Pointer into `results.profile` — `/personal_info/email`, not `email`. Pointers
+rather than field names let the review console flag every field below the 0.60
+threshold (`Validation.md` §6) generically, without hardcoding the profile shape.
+
+**A list rather than an object keyed by pointer**, amended 2026-09-14 after the first
+extraction by a real model. Structured output works by compiling this schema into a
+grammar the model must decode within, and a grammar can constrain a *value* but not an
+arbitrary object *key*. Keyed by pointer, the `propertyNames` pattern was a request the
+model was free to ignore — and it did, returning `full_name` for `/personal_info/full_name`
+and failing validation 31 times on an extraction that was otherwise correct. As a list,
+`pointer` is an ordinary string property the grammar does constrain, so getting the
+format wrong stops being possible rather than being discouraged.
+
+`evidence` sits **inside `results`**, which is where the model writes it;
+`extract` lifts it onto the envelope afterwards, because that is where the
+review console reads it from. It was absent from the results schema until
+2026-09-14, and since `results` forbids undeclared keys that made citations
+impossible for any real model — leaving VR-03, the hallucination defence, with
+nothing to check for the project's whole life. At least one citation is now
+required. `char_start`, `char_end` and `match_score` are **not** asked for: the
+validator computes them while it is already searching for the snippet, and
+asking a model for a character offset asks it to count.
 
 `excluded_signals` records attributes that were present in the source and
 deliberately not extracted. The bias harness (Phase 4.2) checks that this exclusion

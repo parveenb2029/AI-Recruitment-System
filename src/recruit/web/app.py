@@ -13,7 +13,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .. import hosting
+from .. import confidence, hosting
 from ..auth import ROLES, AuthError, PermissionDenied, Principal
 from ..db.auth_repository import build_auth
 from ..db.models import AuditLog, Document, ReviewTask, WorkflowRun
@@ -177,7 +177,7 @@ def create_app(
         envelope = run.envelope
         results = envelope.get("results") or {}
         profile = results.get("profile") or {}
-        confidences: dict[str, float] = results.get("field_confidence") or {}
+        confidences: dict[str, float] = confidence.read(results)
 
         # Source text lives on the ENVELOPE, not in results: the results schema
         # sets additionalProperties:false, so stashing it there would fail

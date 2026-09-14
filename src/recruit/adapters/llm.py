@@ -245,13 +245,46 @@ class OllamaLLM:
             raise LLMError(
                 f"Ollama rejected the request ({exc.code}).", detail=body,
             ) from exc
+        except TimeoutError as exc:
+            # Not a URLError subclass, so it escaped the handler below and
+            # reached the operator as "Unexpected failure: timed out" — true,
+            # useless, and indistinguishable from a crash. A local model on a
+            # CPU is slow by nature; the fix is almost never "retry".
+            raise LLMTimeout(
+                f"Ollama did not answer within {self.timeout_seconds} seconds.",
+                detail=(
+                    "A model running on a CPU is slow, and a long document makes "
+                    "it slower. Three things help, cheapest first:\n"
+                    "  - raise adapters.llm.ollama.timeout_seconds in "
+                    "config/organization.yaml\n"
+                    "  - use a smaller model (llama3.2:3b rather than an 8b)\n"
+                    "  - shorten the document, or run it on a machine with a GPU"
+                ),
+            ) from exc
         except urllib.error.URLError as exc:
+            if isinstance(exc.reason, TimeoutError):
+                raise LLMTimeout(
+                    f"Ollama did not answer within {self.timeout_seconds} seconds.",
+                    detail="Raise adapters.llm.ollama.timeout_seconds, or use a smaller model.",
+                ) from exc
             raise LLMError(
                 f"Cannot reach Ollama at {self._host}.",
                 detail=(
                     "Is it running? Start it with  ollama serve  ,or install it "
                     "from https://ollama.com. Nothing is sent over the internet "
                     "— this is a program on this machine."
+                ),
+            ) from exc
+        except OSError as exc:
+            # URLError is itself an OSError, so this only catches what got past
+            # it: a connection dropped mid-answer, usually Ollama being stopped
+            # or running out of memory while generating. Still a sentence.
+            raise LLMError(
+                "The connection to Ollama broke while it was answering.",
+                detail=(
+                    f"{exc}\nThis usually means Ollama stopped, or ran out of "
+                    f"memory loading the model. Check it is running, and try a "
+                    f"smaller model if the machine is tight on RAM."
                 ),
             ) from exc
 

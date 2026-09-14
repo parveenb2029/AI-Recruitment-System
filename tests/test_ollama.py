@@ -22,7 +22,13 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import pytest
 
 from recruit.adapters.base import LLMAdapter
-from recruit.adapters.llm import LLMError, LLMRefusedSchema, OllamaLLM, build_llm
+from recruit.adapters.llm import (
+    LLMError,
+    LLMRefusedSchema,
+    LLMTimeout,
+    OllamaLLM,
+    build_llm,
+)
 
 SCHEMA = {
     "type": "object",
@@ -245,3 +251,88 @@ def test_an_unknown_provider_names_both_real_options():
     message = str(raised.value)
     assert "anthropic" in message and "ollama" in message
     assert "free" in message
+
+
+# -- slow is not broken -------------------------------------------------------
+def test_a_slow_model_produces_advice_rather_than_a_traceback():
+    """A CPU model that runs long is the normal case, not a fault.
+
+    `socket.timeout` is `TimeoutError`, which is NOT a subclass of `URLError` —
+    so it walked past the connection handler and reached the operator as
+    "Unexpected failure: timed out". True, useless, and indistinguishable from
+    a crash. Found by the operator's own run, not by this file.
+    """
+    import socket
+    import threading
+    import time
+
+    # A server that accepts the connection and then says nothing at all. The
+    # accepted socket is kept alive deliberately: letting it be collected closes
+    # the connection, which is a reset rather than a timeout — a different bug.
+    listener = socket.socket()
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(1)
+    port = listener.getsockname()[1]
+    held = []
+
+    def accept_and_stall():
+        conn, _ = listener.accept()
+        held.append(conn)
+        time.sleep(10)
+
+    threading.Thread(target=accept_and_stall, daemon=True).start()
+
+    a = OllamaLLM(model="llama3.1:8b", host=f"http://127.0.0.1:{port}",
+                  timeout_seconds=1, max_retries=1)
+    try:
+        with pytest.raises(LLMTimeout) as raised:
+            a.complete_structured(system="S", user="U", schema=SCHEMA)
+    finally:
+        listener.close()
+
+    detail = str(raised.value.detail)
+    assert "timeout_seconds" in detail
+    assert "smaller model" in detail
+
+
+# -- what the model is actually shown -----------------------------------------
+def test_a_regex_never_reaches_the_grammar():
+    """A pattern in a schema becomes a state machine the model decodes inside.
+
+    `^(/[^/]*)+$` — a repeated group around a repeated character class — did not
+    finish in five minutes on a 3B model. The same schema without it answers
+    normally. The pointer's format is taught by the worked example and enforced
+    afterwards by validation, where being wrong costs a clear finding instead of
+    an unexplained stall.
+    """
+    from recruit.prompts import without_regex_constraints
+
+    schema = {
+        "type": "object",
+        "properties": {
+            "field_confidence": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "pointer": {"type": "string", "pattern": "^(/[^/]*)+$"},
+                        "confidence": {"type": "number", "minimum": 0},
+                    },
+                    "required": ["pointer", "confidence"],
+                },
+            },
+            "when": {"type": "string", "format": "date"},
+        },
+    }
+    stripped = without_regex_constraints(schema)
+
+    assert "pattern" not in json.dumps(stripped)
+    # The SHAPE survives untouched - that is the part worth enforcing.
+    item = stripped["properties"]["field_confidence"]["items"]
+    assert item["required"] == ["pointer", "confidence"]
+    assert item["properties"]["pointer"]["type"] == "string"
+    assert item["properties"]["confidence"]["minimum"] == 0
+    # `format` is a cheap hint, not a compiled expression. It stays.
+    assert stripped["properties"]["when"]["format"] == "date"
+    # And the original is not mutated - it is still what validation uses.
+    assert schema["properties"]["field_confidence"]["items"]["properties"]["pointer"]["pattern"]

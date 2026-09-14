@@ -22,6 +22,8 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+from . import confidence
+
 ROOT = Path(__file__).resolve().parent.parent.parent
 SCHEMA_DIR = ROOT / "schemas"
 
@@ -199,7 +201,7 @@ def validate_data(envelope: dict[str, Any], report: ValidationReport) -> None:
     # Every confidence pointer must resolve to a real path in the profile.
     # A pointer to nothing means the review console cannot show the reviewer
     # what the score refers to.
-    for pointer in (envelope.get("results") or {}).get("field_confidence", {}):
+    for pointer in confidence.read(envelope.get("results")):
         if not _resolve_pointer(profile, pointer):
             report.add(Finding("DV-POINTER", "WARNING",
                                "field_confidence points at a path not in the "
@@ -243,7 +245,7 @@ def validate_business(envelope: dict[str, Any], report: ValidationReport,
             f"unreviewed low-confidence extraction.",
         ))
 
-    field_confidence = results.get("field_confidence") or {}
+    field_confidence = confidence.read(results)
     expected_low = {p for p, c in field_confidence.items() if c < highlight_below}
     declared_low = set(results.get("low_confidence_fields") or [])
     if expected_low - declared_low:
@@ -342,8 +344,28 @@ def validate_evidence(
 
     evidence = envelope.get("evidence") or []
     if not evidence:
-        report.add(Finding("VR-03", "WARNING",
-                           "No evidence citations. Nothing can be traced to source."))
+        # ERROR, not WARNING — this blocks, and it has to.
+        #
+        # A run with no citations has had VR-03 applied to nothing. Every field
+        # in it is the model's unsupported word. As a warning it did not block,
+        # so a real extraction came back SUCCESS, confidence 0.92, human review
+        # NOT required, with not one claim traceable to the document — the exact
+        # combination this project exists to make impossible. An extraction that
+        # cannot be checked is more dangerous than one that fails, because it
+        # arrives wearing the same green tick as one that was verified.
+        #
+        # The model's own confidence is no answer to this. It is self-reported
+        # and uncalibrated (`confidence.calibrated: false`), and a model that
+        # invents an employer is not less sure while doing it.
+        report.add(Finding(
+            "VR-03", "ERROR",
+            "No evidence citations, so nothing in this extraction can be traced "
+            "back to the document. Every field is unverified.",
+            detail=("A person must read this against the source before it goes "
+                    "any further. If the model produces no citations at all, it "
+                    "is usually too small for the job — see the README on "
+                    "choosing a model."),
+        ))
         return
 
     haystack = _normalize(source_text)
@@ -401,6 +423,168 @@ def validate_evidence(
                 detail=f"field={item.get('field')!r}",
             ))
 
+        # The snippet is in the document. That says nothing about whether the
+        # field it was cited for agrees with it.
+        if score >= threshold:
+            check_value_matches_citation(envelope, item, pointer, report, threshold)
+
+
+
+# Fields whose value must appear in its citation CHARACTER FOR CHARACTER.
+# One wrong character in an email address or a phone number is not a near-miss,
+# it is a different person — or nobody. Fuzzy matching is exactly wrong here:
+# `rahl.sharma@email.com` scores 0.95 against `rahul.sharma@email.com` and is
+# undeliverable.
+VERBATIM_FIELDS = {
+    "email", "phone", "linkedin_url", "github_url", "portfolio_url", "url",
+    "website",
+}
+
+# Fields a model is *supposed* to rewrite. Checking a summary against the words
+# it was summarised from would fail every honest extraction.
+PARAPHRASED_FIELDS = {
+    "summary", "description", "achievements", "responsibilities", "notes",
+    "professional_summary",
+}
+
+# Fields WE supply, not the document. `candidate_id` is passed in on the command
+# line and written into the envelope by us; it appears nowhere in any resume, so
+# comparing it against a snippet can only ever fail. A real run produced
+# "similarity 0.20" for it — a warning that was true, useless, and the kind that
+# teaches a reviewer to skim past the ones that matter.
+SYSTEM_SUPPLIED_FIELDS = {"candidate_id", "requisition_id", "workflow_run_id"}
+
+
+def value_at(document: Any, pointer: str) -> Any:
+    """Resolve a JSON Pointer, or return None. Never raises on bad input."""
+    node = document
+    for part in pointer.strip("/").split("/"):
+        if isinstance(node, dict):
+            if part not in node:
+                return None
+            node = node[part]
+        elif isinstance(node, list):
+            if not part.isdigit() or int(part) >= len(node):
+                return None
+            node = node[int(part)]
+        else:
+            return None
+    return node
+
+
+def check_value_matches_citation(envelope: dict[str, Any], item: dict[str, Any],
+                                 pointer: str, report: ValidationReport,
+                                 threshold: float) -> None:
+    """Does the extracted field actually say what its own citation says?
+
+    **VR-03 proves a snippet exists in the document. It proves nothing about the
+    field the snippet was cited for.** A model can quote the resume perfectly and
+    still write something different into the field, and until this check the
+    result was `SUCCESS`, zero findings, no review required.
+
+    That is not hypothetical. A real run quoted `Email:
+    rahul.sharma@email.com` from the document and extracted
+    `rahl.sharma@email.com` — one character missing from the only field anyone
+    would use to contact that candidate. Every check in the system passed it.
+
+    Two kinds of field, deliberately:
+
+    - **Verbatim** (email, phone, links): the value must appear in the snippet
+      exactly. Fuzzy matching is precisely wrong — a one-character error scores
+      0.95 and still reaches nobody.
+    - **Everything else** short and scalar: fuzzy, because a model may tidy
+      capitalisation or spacing legitimately. Paraphrased fields are skipped
+      outright; a summary is *meant* to differ from its source.
+    """
+    target = item.get("pointer")
+    if not isinstance(target, str) or not target:
+        return
+
+    results = envelope.get("results") or {}
+    # Evidence pointers are written against `results` in the worked example
+    # (`/profile/experience/0/title`) but a model may point at the profile
+    # directly. Try both rather than silently checking nothing.
+    value = value_at(results, target)
+    if value is None:
+        value = value_at(results.get("profile") or {}, target)
+    if not isinstance(value, str) or not value.strip():
+        return
+
+    name = target.rstrip("/").split("/")[-1].lower()
+    if name in PARAPHRASED_FIELDS or name in SYSTEM_SUPPLIED_FIELDS:
+        return
+
+    snippet = _normalize(str(item.get("snippet", "")))
+    normalised = _normalize(value)
+
+    if name in VERBATIM_FIELDS:
+        if normalised not in snippet:
+            report.flags.append("VALUE_NOT_IN_EVIDENCE")
+            report.add(Finding(
+                "VR-05", "ERROR",
+                f"The extracted {name} does not appear in the text cited for it.",
+                pointer=pointer,
+                detail=(f"extracted {value!r}, but its own citation reads "
+                        f"{str(item.get('snippet'))[:120]!r}. For an address or "
+                        f"a number, one wrong character is not a near miss."),
+            ))
+        return
+
+    if len(normalised) > 120:        # long free text: not a quotable value
+        return
+
+    from rapidfuzz import fuzz
+    score = 1.0 if normalised in snippet else fuzz.partial_ratio(normalised, snippet) / 100.0
+    if score < threshold:
+        report.add(Finding(
+            "VR-05", "WARNING",
+            f"The extracted {name} is not supported by the text cited for it "
+            f"(similarity {score:.2f}).",
+            pointer=pointer,
+            detail=f"extracted {value!r}, cited {str(item.get('snippet'))[:120]!r}",
+        ))
+
+
+# Fields that identify or reach a real person. A wrong one of these is not a
+# quality problem, it is a candidate who never hears back, or the wrong
+# candidate contacted about someone else's application.
+MUST_BE_CITED = ("full_name", "email", "phone")
+
+
+def check_contact_fields_are_cited(envelope: dict[str, Any], report: ValidationReport) -> None:
+    """An uncited field is exactly as unverified as a wrongly cited one.
+
+    VR-05 checks a value against the citation made for it. It can say nothing
+    about a field nobody cited — and a model that quietly skips the email is
+    indistinguishable, from the outside, from one that got it right.
+
+    A real run demonstrated the gap: six citations, validation green, and
+    `rahl.sharma@email.com` in the field. The mistake was not caught because the
+    email was never among the six. Silence read as success.
+    """
+    profile = (envelope.get("results") or {}).get("profile") or {}
+    personal = profile.get("personal_info") or {}
+
+    cited = {
+        str(item.get("pointer", "")).rstrip("/").split("/")[-1].lower()
+        for item in (envelope.get("evidence") or [])
+        if isinstance(item, dict)
+    }
+
+    for name in MUST_BE_CITED:
+        value = personal.get(name)
+        if not isinstance(value, str) or not value.strip():
+            continue           # not extracted at all: a different problem
+        if name not in cited:
+            report.add(Finding(
+                "VR-06", "ERROR",
+                f"The candidate's {name.replace('_', ' ')} was extracted but "
+                f"never cited, so nothing shows where it came from.",
+                pointer=f"/results/profile/personal_info/{name}",
+                detail=(f"extracted {value!r}. A field nobody cited is as "
+                        f"unverified as one cited wrongly — and this is a field "
+                        f"used to identify or contact a real person."),
+            ))
 
 # -- orchestration ------------------------------------------------------------
 def validate(
@@ -419,6 +603,10 @@ def validate(
     validate_business(envelope, report, config)
     if source_text is not None:
         validate_evidence(envelope, source_text, report, evidence_threshold)
+        # Runs whatever the citations said: the question here is what they did
+        # NOT say. A field nobody cited is unverified, and silence reads as
+        # success unless something goes looking for it.
+        check_contact_fields_are_cited(envelope, report)
     else:
         report.add(Finding("VR-03", "WARNING",
                            "Source text not supplied; evidence grounding was skipped."))

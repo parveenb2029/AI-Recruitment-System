@@ -73,19 +73,52 @@
       "extracted_at": "2026-08-03T09:18:42Z"
     }
   },
-  "field_confidence": {
-    "/personal_info/full_name": 0.99,
-    "/personal_info/email": 0.98,
-    "/personal_info/phone": 0.94,
-    "/personal_info/location": 0.96,
-    "/experience/0/company": 0.97,
-    "/experience/0/title": 0.96,
-    "/experience/0/start_date": 0.91,
-    "/experience/1/company": 0.95,
-    "/experience/1/end_date": 0.57,
-    "/education/0/institution": 0.95,
-    "/skills": 0.92
-  },
+  "field_confidence": [
+    {
+      "pointer": "/education/0/institution",
+      "confidence": 0.95
+    },
+    {
+      "pointer": "/experience/0/company",
+      "confidence": 0.97
+    },
+    {
+      "pointer": "/experience/0/start_date",
+      "confidence": 0.91
+    },
+    {
+      "pointer": "/experience/0/title",
+      "confidence": 0.96
+    },
+    {
+      "pointer": "/experience/1/company",
+      "confidence": 0.95
+    },
+    {
+      "pointer": "/experience/1/end_date",
+      "confidence": 0.57
+    },
+    {
+      "pointer": "/personal_info/email",
+      "confidence": 0.98
+    },
+    {
+      "pointer": "/personal_info/full_name",
+      "confidence": 0.99
+    },
+    {
+      "pointer": "/personal_info/location",
+      "confidence": 0.96
+    },
+    {
+      "pointer": "/personal_info/phone",
+      "confidence": 0.94
+    },
+    {
+      "pointer": "/skills",
+      "confidence": 0.92
+    }
+  ],
   "conflicts": [],
   "extraction_metadata": {
     "ocr_used": false,
@@ -102,6 +135,24 @@
     "gender"
   ],
   "evidence": [
+    {
+      "field": "personal_info.full_name",
+      "pointer": "/profile/personal_info/full_name",
+      "snippet": "RAHUL SHARMA",
+      "source_location": "page 1"
+    },
+    {
+      "field": "personal_info.email",
+      "pointer": "/profile/personal_info/email",
+      "snippet": "Email: rahul.sharma@email.com | Phone: +91-98765-43210",
+      "source_location": "page 1"
+    },
+    {
+      "field": "personal_info.phone",
+      "pointer": "/profile/personal_info/phone",
+      "snippet": "Email: rahul.sharma@email.com | Phone: +91-98765-43210",
+      "source_location": "page 1"
+    },
     {
       "field": "experience[0].title",
       "pointer": "/profile/experience/0/title",

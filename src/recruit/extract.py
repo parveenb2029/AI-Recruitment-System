@@ -18,10 +18,16 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from . import ingest
+from . import confidence, ingest
 from .adapters.llm import FakeLLM, build_llm
 from .errors import RecruitError
-from .prompts import WorkflowPrompt, load_results_schema
+from .prompts import (
+    WorkflowPrompt,
+    load_results_schema,
+    with_pointer_enum,
+    with_required_evidence,
+    without_regex_constraints,
+)
 from .validate import validate as run_validation
 
 WORKFLOW_ID = "WF-03"
@@ -79,10 +85,23 @@ def extract(
         additional_context="(none)",
     )
 
-    response = llm.complete_structured(system=prompt.system, user=user, schema=schema)
+    # The model gets the shape; validation keeps the regex. See
+    # `without_regex_constraints` for why a pattern in a grammar is expensive.
+    # The model is handed a menu of real pointers and no regexes; validation
+    # still holds the full schema. See `with_pointer_enum` for why.
+    model_schema = without_regex_constraints(
+        with_required_evidence(with_pointer_enum(schema))
+    )
+    response = llm.complete_structured(
+        system=prompt.system, user=user, schema=model_schema,
+    )
     results = response.content
 
-    field_confidence = results.get("field_confidence") or {}
+    # Through `confidence.read`, so an envelope in either shape is understood
+    # and a new one is written in the enforceable list shape.
+    field_confidence = confidence.read(results)
+    if field_confidence:
+        results["field_confidence"] = confidence.as_pairs(field_confidence)
     aggregate = _aggregate_confidence(field_confidence)
 
     threshold = 0.85

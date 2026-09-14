@@ -3,7 +3,10 @@
   "title": "WF-03 Resume Data Extraction — Results Payload",
   "description": "The payload that WF-03 produces. Replaces the empty \"results\": {} placeholder that stood in all eight Prompt.md files. 'profile' is structurally compatible with resume.schema.json, so samples/Rahul_Sharma.json slots in directly.",
   "type": "object",
-  "required": ["profile", "field_confidence"],
+  "required": [
+    "profile",
+    "field_confidence"
+  ],
   "additionalProperties": false,
   "properties": {
     "profile": {
@@ -11,48 +14,82 @@
       "description": "The extracted candidate profile. Reuses the existing entity schema rather than defining a parallel one."
     },
     "field_confidence": {
-      "type": "object",
-      "description": "Maps a JSON Pointer into 'profile' to that field's confidence. Keyed by pointer rather than by name so the review console can flag any field below 0.60 (Validation.md section 6) without knowing the profile shape.",
-      "propertyNames": { "pattern": "^(/[^/]*)+$" },
-      "additionalProperties": {
-        "type": "number",
-        "minimum": 0,
-        "maximum": 1
-      },
-      "minProperties": 1
+      "type": "array",
+      "description": "Per-field confidence, as a list of {pointer, confidence} pairs. A LIST rather than an object keyed by pointer, and the reason is enforceability: constrained decoding (Ollama's `format`, Anthropic's tool use) builds a grammar from this schema, and a grammar can constrain the shape and type of a VALUE but cannot constrain an arbitrary object KEY to a regex. Keyed by pointer, `propertyNames` was advisory - the first real model run returned plain field names ('full_name') and produced 31 validation errors on an extraction that was otherwise correct. As a list, `pointer` is an ordinary string property the grammar does constrain, so a model is structurally unable to get the format wrong.",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "pointer",
+          "confidence"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "pointer": {
+            "type": "string",
+            "pattern": "^(/[^/]*)+$",
+            "description": "JSON Pointer into results.profile, e.g. /personal_info/email"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        }
+      }
     },
     "low_confidence_fields": {
       "type": "array",
       "description": "Convenience index of pointers whose confidence is below the review threshold. Derived, not authoritative - field_confidence is the source of truth.",
-      "items": { "type": "string" }
+      "items": {
+        "type": "string"
+      }
     },
     "conflicts": {
       "type": "array",
       "description": "Contradictions found in the source. Per the edge-case table, conflicting dates must be listed here and NEVER silently resolved.",
       "items": {
         "type": "object",
-        "required": ["pointer", "values"],
+        "required": [
+          "pointer",
+          "values"
+        ],
         "properties": {
-          "pointer": { "type": "string" },
+          "pointer": {
+            "type": "string"
+          },
           "values": {
             "type": "array",
-            "items": { "type": "string" },
+            "items": {
+              "type": "string"
+            },
             "minItems": 2
           },
-          "note": { "type": "string" }
+          "note": {
+            "type": "string"
+          }
         }
       }
     },
     "extraction_metadata": {
       "type": "object",
-      "required": ["ocr_used", "pages_processed"],
+      "required": [
+        "ocr_used",
+        "pages_processed"
+      ],
       "properties": {
         "ocr_used": {
           "type": "boolean",
           "description": "True when the text layer fell below the 100-character threshold and OCR fallback ran."
         },
-        "pages_processed": { "type": "integer", "minimum": 0 },
-        "source_char_count": { "type": "integer", "minimum": 0 },
+        "pages_processed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "source_char_count": {
+          "type": "integer",
+          "minimum": 0
+        },
         "content_sha256": {
           "type": "string",
           "pattern": "^[a-f0-9]{64}$",
@@ -71,7 +108,16 @@
     "excluded_signals": {
       "type": "array",
       "description": "Attributes present in the source that were deliberately NOT extracted or used - age, gender, nationality, marital status, photograph. Recorded so the bias audit in Phase 4.2 can verify the exclusion actually happened.",
-      "items": { "type": "string" }
+      "items": {
+        "type": "string"
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "description": "Verbatim source snippets supporting the extracted fields. ALLOWED here so the model is able to produce them at all - `results` sets additionalProperties false, so an undeclared key is a key the grammar forbids, and from Phase 1 until 2026-09-14 that silently made citations impossible and left VR-03 with nothing to check. NOT required here, because `extract` lifts the array onto the envelope where the review console reads it, so by the time validation runs this key is legitimately gone. The model-facing copy adds `required` and `minItems: 1` - see `prompts.with_required_evidence`.",
+      "items": {
+        "$ref": "envelope.schema.json#/$defs/evidence_ref"
+      }
     }
   }
 }

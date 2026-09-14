@@ -107,17 +107,44 @@
         "extracted_at": "2026-08-03T09:18:42Z"
       }
     },
-    "field_confidence": {
-      "/personal_info/full_name": 0.99,
-      "/personal_info/email": 0.98,
-      "/personal_info/phone": 0.94,
-      "/experience/0/company": 0.97,
-      "/experience/0/title": 0.96,
-      "/experience/0/start_date": 0.91,
-      "/experience/1/end_date": 0.58,
-      "/education/0/institution": 0.95,
-      "/skills": 0.92
-    },
+    "field_confidence": [
+      {
+        "pointer": "/education/0/institution",
+        "confidence": 0.95
+      },
+      {
+        "pointer": "/experience/0/company",
+        "confidence": 0.97
+      },
+      {
+        "pointer": "/experience/0/start_date",
+        "confidence": 0.91
+      },
+      {
+        "pointer": "/experience/0/title",
+        "confidence": 0.96
+      },
+      {
+        "pointer": "/experience/1/end_date",
+        "confidence": 0.58
+      },
+      {
+        "pointer": "/personal_info/email",
+        "confidence": 0.98
+      },
+      {
+        "pointer": "/personal_info/full_name",
+        "confidence": 0.99
+      },
+      {
+        "pointer": "/personal_info/phone",
+        "confidence": 0.94
+      },
+      {
+        "pointer": "/skills",
+        "confidence": 0.92
+      }
+    ],
     "low_confidence_fields": [
       "/experience/1/end_date"
     ],

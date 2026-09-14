@@ -15,10 +15,10 @@ match, behind real authentication with role-based access control, with a
 bias-audit harness, a compliance pack, a one-command Docker quickstart, a
 console written in plain English rather than field names, a one-click path to
 a copy on your own server with your own accounts, and a free local model so it
-costs nothing to run for real. 268 tests pass.
+costs nothing to run for real. 277 tests pass.
 
 Phases 0–3 complete (the vertical slice runs end to end), plus 4.2, 5.1, 5.2,
-5.3 and 5.4.
+5.3, 5.4 and 5.5.
 Remaining: the golden set (4.1) and confidence calibration (4.3, blocked on it).
 
 The two scripts under `tools/legacy/` are the original document generators —
@@ -208,7 +208,8 @@ artifact. Summary:
 | 6.1 | Capture real job-board emails | **operator's homework** — blocks 6.3 |
 | 6.2a | Mail reading: MIME, attachments, filenames, provenance | **done** |
 | 5.3 | Self-hosting: browser account management, public-deploy guard, Render blueprint | **done** — the deploy itself unverified |
-| 5.4 | Free local model (Ollama), console redesign, working dark mode | **done** — never run against a real Ollama |
+| 5.4 | Free local model (Ollama), console redesign, working dark mode | **done and verified** — real extraction run |
+| 5.5 | `field_confidence` made grammar-enforceable | **done** — old envelopes still readable |
 | 6.2b–6.12 | Gmail connection, per-source parsers, landing zone, safety gate, screening | not started — `docs/intake_playbook.md` |
 
 ---
@@ -232,8 +233,9 @@ lands. Do not assume anything here exists.
 | ~~**Plain-language console copy**~~ | Phase 3.5 / 5.1 | **Closed 2026-08-23.** `web/humanize.py` plus rewritten templates; the technical values are hidden behind a toggle, not removed, and `tests/test_humanize.py` fails if either half regresses. Original entry kept below for the reasoning. |
 | ~~Plain-language console copy (original entry)~~ | Phase 3.5 / 5.1 | **The console is written for engineers and its users are not.** The audit page column heads are `Run`, `Prompt`, `Model`; the rows carry `workflow_run_id`, `prompt_version`, `model_id`, event names like `auth.login_failed`, and a raw Python dict in `detail`. Reviewers will be recruiters and hiring managers — the operator puts it at 99% non-technical. Needs: human sentences per event ("Parveen signed in" / "Sign-in failed — wrong password"), plain column heads, `detail` rendered as fields rather than a dict, and the same pass over the queue, detail, login and error screens. The jargon must survive *somewhere* — LL144 and GDPR Art. 22 evidence depends on run and model identity — so this is a presentation layer over the existing columns, not a schema change: keep the technical values behind a "Show technical details" toggle or an export. | Next available |
 | **Render deploy never performed** | 5.3 | `render.yaml` is parsed and asserted by a test, and everything it configures was run natively against a live server with `RECRUIT_PUBLIC=1` — but no blueprint has ever been submitted to Render. The first click is the acceptance test. Same shape as the Docker image, carried open for a day and then green in CI on the first try. | Operator's next sitting |
-| **`OllamaLLM` never run against a real Ollama** | 5.4 | Eleven tests drive a real HTTP server that answers the way Ollama's documentation says it does — request body, response shape, and both first-run failures. What has never happened is a call to the actual daemon with actual weights behind it, so the request is right by specification rather than by observation. The operator installing Ollama and extracting one resume is the acceptance test. | Operator's next sitting |
+| ~~**`OllamaLLM` never run against a real Ollama**~~ | 5.4 | **Closed 2026-09-14.** The operator installed Ollama, pulled a 3B model and ran a real extraction: correct name, email, two roles and nine skills out of an actual PDF, with no API key. It immediately found a defect no test could — the digest lookup asked `/api/show`, which carries no digest at all; it lives in `/api/tags`. Right by the documentation, wrong against the daemon. | — |
 | Refused account changes are not logged | 5.3 | Blocking a lockout raises before anything is written, so an attempt to switch off the last administrator leaves no trace. Successful changes are recorded; refused ones are not, and repeated attempts are the more interesting signal of the two. Small to add — the guard already holds a session — and deliberately not bundled into a change that was already wide. | Next available |
+| **Project walkthrough guide — owed to the operator** | asked 2026-09-13 | Not technical debt; a promised deliverable. A plain-language tour of the whole repository for someone who is not an engineer: what every folder holds, what decision was made at each step, why it was made, what the alternative was, and why the architecture ended up this shape. The raw material already exists in this file's decision log — but that log is written for a coding session, not for a reader, and it is 700 lines. Written **after** the build is ready, not during, so it describes what shipped rather than what was planned. | After Phase 7 |
 | Doc de-duplication | — | Sibling docs still 84–92% identical. Not on the critical path to shipping. | Optional cleanup |
 
 **Rule:** when a phase cannot deliver something it promised, add a row here in the
@@ -785,3 +787,250 @@ Append here. Newest last.
   being set up, at precisely the moment nobody is watching it. The blueprint and
   the README now say so in those words and walk through pointing `DATABASE_URL`
   at a free Neon database instead, which has no timer.
+
+- **2026-09-14** — `field_confidence` becomes a list, because a grammar cannot
+  constrain an object key. Found by the operator running the first real
+  extraction any model has ever done on this project — a 3B model, on their own
+  laptop, no key. It read the name, email, two roles and nine skills correctly
+  and then failed validation **31 times**, every failure the same: the schema
+  asks for `field_confidence` keyed by JSON Pointer, and the model returned
+  `full_name` where it should have returned `/personal_info/full_name`.
+  **The instinct — "use a bigger model" — is wrong, and worth writing down.**
+  Structured output works by compiling the schema into a grammar the model must
+  decode within. A grammar constrains the shape and type of a *value*. It cannot
+  constrain an arbitrary object *key* to a regular expression, in Ollama or in
+  Anthropic's tool use. So `propertyNames: {pattern: ...}` was never enforced —
+  it was a request the model was free to ignore. A larger model would ignore it
+  *less often*, which is worse than failing consistently: intermittent
+  correctness is the kind you cannot build a review process on.
+  So the fix is the schema. `field_confidence` is now a list of
+  `{pointer, confidence}` pairs, where `pointer` is an ordinary string property
+  the grammar does constrain. **This is the Phase 3.6 move again** — there, the
+  fit-score fields were stripped from the model-facing schema so the model was
+  incapable of returning a score; here the pointer moves into a position where
+  getting the format wrong stops being possible rather than being discouraged.
+  Worth noting what this says about the older work: no real model had ever met
+  this schema. The Anthropic path still has not run. Every green test to date
+  was `FakeLLM` answering with a hand-written fixture whose pointers were
+  correct because a person typed them. The fixture was right and the contract
+  was unenforceable, and only a real model could tell those apart.
+  **Both shapes are read, forever.** `src/recruit/confidence.py` is the single
+  place that knows, and every call site — extract, validate, the review console
+  — goes through it. Extraction envelopes are evidence and the audit log is
+  append-only; a run recorded last month is a record of what happened, not a
+  file to migrate. A console that could not open it would make the older half
+  of the archive unreadable, which is the opposite of what an evidence trail is
+  for. Verified by writing an old-shape envelope into a real database and
+  opening it in a running console: confidences rendered 0.99, 0.98, 0.94 as
+  they always did.
+  The worked example in `03_Extracted_Data/Prompt.md` changed in the same
+  breath, with a test asserting it matches the schema. Models imitate the
+  example at least as strongly as they obey the schema, so an example left
+  showing the old shape would actively teach the mistake the change exists to
+  prevent. 277 tests pass; ruff clean; branding and schema gates green.
+
+  **Postscript, same day — the fix cost five minutes of somebody's laptop.**
+  With the pointer pattern on a string property, the first real run **did not
+  finish**: `Unexpected failure: timed out` after 300 seconds. The regex is why.
+  Structured output compiles the schema into a grammar, and `^(/[^/]*)+$` — a
+  repeated group around a repeated character class — becomes a state machine
+  re-evaluated at every token. The same schema without it answers in the usual
+  couple of minutes.
+  What makes this worth recording is *why it appeared only now*: the identical
+  regex had been in the schema all along under `propertyNames`, and cost
+  nothing — because `propertyNames` is one of the keywords grammar conversion
+  ignores. The same silence that left the pointer format unenforced for the
+  project's whole life was also what made it free. Moving the constraint
+  somewhere it is honoured is what made it expensive. That is a fair price and
+  a real trade, not a regression.
+  So `prompts.without_regex_constraints` strips `pattern` from the schema the
+  model is handed, and only that: the SHAPE stays enforced — a list of objects,
+  each with a `pointer` string and a `confidence` number — while the pointer's
+  *format* is taught by the worked example and enforced afterwards by VR-02.
+  Getting it wrong now costs a clear finding on the review screen instead of an
+  unexplained stall. `format` is left in place; date and email are cheap hints,
+  not compiled expressions.
+  **A second defect in the same run.** `socket.timeout` is `TimeoutError`,
+  which is **not** a subclass of `URLError` — so it walked straight past the
+  adapter's connection handler and surfaced as "Unexpected failure: timed out".
+  True, useless, and indistinguishable from a crash. Timeouts now name the
+  three things that actually help, cheapest first, and a bare `OSError` — a
+  connection dropped mid-answer, usually Ollama stopping or running out of
+  memory — gets its own sentence too. Both found by the operator running it;
+  neither reachable from a test that had not first been told what to look for.
+  279 tests pass.
+
+  **Second postscript — the pointer becomes a menu.** Stripping the regex fixed
+  the stall and the run completed, with the shape correctly enforced: the errors
+  moved from `field_confidence` to `field_confidence/0/pointer`, which is the
+  grammar doing its job. The model then filled that string with `email`,
+  `company`, `degree` — field names, not paths, for the second time. Free text
+  in, field names out, and `company` is ambiguous anyway: it occurs once per job,
+  so nothing recovers afterwards what was meant.
+  `prompts.with_pointer_enum` replaces the pointer's type with an **enum of every
+  pointer the profile schema actually admits** — 136 of them at an array bound of
+  ten, 3.5KB, derived from `resume.schema.json` at request time rather than
+  hand-listed so it cannot rot. An enum in a grammar is a flat alternation:
+  cheap, unlike the nested-quantifier regex that caused the timeout. The wrong
+  answer stops being reachable rather than being discouraged.
+  **That is now three times this project has taken the same route** — strip the
+  score fields so a fit score cannot be returned, list-shape `field_confidence`
+  so the key format can be constrained, enumerate the pointers so an invented one
+  cannot be written. The pattern is worth naming: when a model keeps getting
+  something wrong, the useful question is not "how do we ask better" but "why is
+  the wrong answer expressible at all".
+  Two schemas, two audiences, stated because it looks like duplication and is
+  not: the model gets a menu with no regex, validation keeps the pattern, so an
+  envelope arriving from anywhere else — an older run, a different adapter, a
+  hand-edited file — is still checked properly. The array bound is a real limit
+  and is documented as one: a candidate with more than ten jobs cannot have
+  confidence reported for the eleventh. 283 tests pass; ruff clean.
+
+  **Third postscript, and the most important thing found all week.** With the
+  pointer menu in place the run came back clean: `status SUCCESS`, validation
+  `PASS`, confidence 0.92, **human review not required** — and *zero evidence
+  citations*. One warning, which did not block.
+  That is the exact combination this project exists to make impossible. VR-03 is
+  the hallucination defence; with no citations it checked nothing, and the
+  extraction arrived wearing the same green tick as one that had been verified
+  line by line. Every field in it was the model's unsupported word, and the
+  screen said it was fine. **An extraction that cannot be checked is more
+  dangerous than one that fails**, because a reviewer has no reason to look
+  harder at it.
+  "No evidence citations" is now an **ERROR**, so it blocks: status drops to
+  PARTIAL and a human is required. The model's own confidence is no answer to
+  this — it is self-reported, `confidence.calibrated` is still false, and a model
+  fabricating an employer is not less sure while doing it. 0.92 from a 3B model
+  with nothing to back it is not evidence of anything.
+  This was a WARNING from Phase 3.3 onward and nobody noticed for three weeks,
+  because `FakeLLM`'s fixture has always carried three citations — so the branch
+  never ran in anger. The same shape as the `field_confidence` bug: a contract
+  that looked enforced, a fixture that was too well-behaved to test it, and only
+  a real model able to tell the difference. Third defect the operator's own run
+  has surfaced in two days. 284 tests pass; ruff clean.
+
+  **Fourth postscript — why there were no citations, and it was never the model.**
+  The obvious reading of "0 citations from a 3B model" is that the model is too
+  small. It is not. **`results` sets `additionalProperties: false` and `evidence`
+  was not one of its properties**, so the grammar would not let any model emit
+  the key at all — while `extract` did `results.pop("evidence", [])` and
+  collected an empty list every single time. VR-03, described in this file as the
+  most important code in the project, **had never once been handed real model
+  output**, from Phase 1 until today.
+  Nothing caught it because `FakeLLM` returns its fixture object directly,
+  without passing it through the schema, and that fixture has always carried
+  three citations. A fake that is not bound by the contract will tell you the
+  contract works. There is now a test that validates the fixture against the real
+  schema, which fails loudly the next time the two drift.
+  `evidence` is declared in the results schema, and `prompts.with_required_evidence`
+  adds `minItems: 1` and `required` **to the model-facing copy only** — the stored
+  schema cannot require it, because `extract` lifts the array onto the envelope
+  and by validation time the key is legitimately gone. The same transform strips
+  `char_start`, `char_end` and `match_score`: the validator fills those in while
+  it is already searching for the snippet, and asking a model for a character
+  offset asks it to count, which is the one thing it is reliably bad at. A wrong
+  offset highlights the wrong words in the console, which is worse than none.
+  **Fourth time, same move.** Prose in the system prompt asked for citations and
+  the schema permitted `[]`, so the model took the schema at its word — exactly
+  like the pointer format, one layer up.
+  **A fifth defect, mine, found in the same hour.** Inlining
+  `envelope.schema.json#/$defs/evidence_ref` left its *own* internal refs —
+  `#/$defs/json_pointer`, `#/$defs/confidence` — pointing at nothing, because the
+  results schema has no `$defs`. A validator raises on that, which is the loud
+  half; the dangerous half is silent, since a provider compiling a grammar leaves
+  an unresolvable field simply unconstrained. `dereference` now carries the
+  source document's definitions across, and only the ones still pointed at, since
+  the schema travels on every request. A test asserts no `$ref` in a loaded
+  schema points at nothing.
+  Also worth recording from the operator's run: the 3B model returned
+  `rahl.sharma@email.com` — the `u` dropped out of a name it had read correctly
+  two lines earlier. A single wrong character in the one field used to contact a
+  candidate, invisible to every check in the system *except* the one that had
+  been disconnected since Phase 1. 289 tests pass; ruff clean.
+
+  **Fifth postscript, and the one worth telling people about. VR-05.**
+  With citations finally flowing — ten of them, VR-03 satisfied, validation
+  `PASS`, zero findings, `SUCCESS`, no review required — the extracted email
+  was `rahl.sharma@email.com`. One character missing from the only field anyone
+  would use to contact that candidate, and every check in the system passed it.
+  **VR-03 proves a snippet exists in the document. It proves nothing about the
+  field the snippet was cited for.** The model quoted
+  `Email: rahul.sharma@email.com` correctly — a real snippet, found in the
+  source — and wrote something else into the field. The citation was honest and
+  the extraction was wrong, and nothing in four layers of validation was looking
+  at the gap between them.
+  `VR-05` closes it: for every citation carrying a pointer, the value at that
+  pointer must be supported by the snippet cited for it. Two classes,
+  deliberately. **Verbatim fields** — email, phone, links — must match character
+  for character, because fuzzy matching is precisely wrong there:
+  `rahl.sharma@email.com` scores 0.95 against the real address and reaches
+  nobody. **Everything else short and scalar** is fuzzy, since tidied
+  capitalisation is legitimate. **Paraphrased fields are skipped entirely** —
+  a summary is meant to differ from its source, and a rule that fires on correct
+  work is a rule somebody switches off.
+  Worth naming what this run actually demonstrated: the hallucination defence
+  had been pointed at the wrong half of the problem. Fabricating a quote is one
+  failure; misreading a real one is another, it is more common, and it looked
+  identical from every angle the system had. 293 tests pass; ruff clean.
+
+  **Sixth postscript — VR-05 did not fire, and the reason was the same shape.**
+  The next run produced six citations, validation green, and the same
+  `rahl.sharma@email.com`. VR-05 said nothing because **the email was not among
+  the six**, and `pointer` on a citation was *optional*, so a quote could be
+  attached to nothing at all — reading as evidence, counting as evidence, and
+  checkable against nothing. Two holes, one habit.
+  `pointer` is now **required on every citation and drawn from the same menu of
+  real paths**, so a citation always lands on something. And `VR-06` closes the
+  other half: the candidate's name, email and phone must each be cited if they
+  were extracted. **A field nobody cited is exactly as unverified as one cited
+  wrongly** — the only difference is that the first kind leaves no trace to
+  argue with, and silence reads as success.
+  Those three fields, and not the rest, because a wrong one of them is not a
+  quality problem: it is a candidate who never hears back, or the wrong person
+  contacted about someone else's application.
+  **The rule immediately failed our own reference extraction**, which cited a job
+  title, an employer and a skill but neither the name nor the phone. That is the
+  fixture being unrealistic again — the third time today it has been too
+  well-behaved to catch anything — so it now cites the contact fields, and a
+  test pins the count as "at least", since a hard number turns every future rule
+  into an unrelated failure. 296 tests pass; ruff clean.
+
+  **Seventh postscript — the enum was decoration, and the email fixed itself.**
+  Two things in one run. The email came back **correct** —
+  `rahul.sharma@email.com`, after three runs of `rahl` — and I wrote here that
+  requiring citations had made the model read more carefully.
+  **That was wrong, and the next run said so**: `rahl` again, same model, same
+  document, same schema. What I had was one sample of a variable process, and I
+  reported it as an effect. Correcting it rather than deleting it, because the
+  mistake is the useful part: a 3B model gets this character right sometimes and
+  wrong sometimes, which is *worse* than getting it wrong every time — an
+  intermittent error is the kind a reviewer stops expecting. The citation
+  requirement exposes the error when the field is cited. It does not fix it, and
+  nothing here has yet shown that it improves accuracy at all. That claim needs
+  the golden set (4.1), not an anecdote.
+  The bad one: every pointer came back as the *value* — `"RAHUL SHARMA"`,
+  `"Infosys Limited"` — and six VR-02 errors with it. The enum I had just added
+  did nothing, because `pointer` arrives from the envelope schema as
+  `{"$ref": "#/$defs/json_pointer"}` and I **added `enum` beside the `$ref`**
+  instead of replacing the property. Grammar conversion follows the reference
+  and drops the sibling, so the constraint was decoration: present in the
+  schema, absent from the grammar, and indistinguishable from a working one
+  unless something goes looking. My own test passed, because it asserted the
+  enum existed rather than that it applied.
+  The property is replaced outright now, and both tests assert no `$ref`
+  survives beside it. **This is the second time today a schema keyword was
+  silently ignored** — `propertyNames` was the first — and the lesson is the
+  same one at a different altitude: a constraint that the grammar does not
+  compile is a comment. When something must be enforced, the test has to check
+  the shape of what is *sent*, not the shape of what was intended.
+  296 tests pass; ruff clean.
+
+  **Eighth postscript — a true warning that was still noise.** The same run
+  warned `candidate_id` was "not supported by the text cited for it, similarity
+  0.20". Perfectly true: `candidate_id` is passed in on the command line and
+  appears in no resume ever written, so the comparison can only fail. A warning
+  that is correct, unactionable and unavoidable is how a reviewer learns to skim
+  past the warnings that matter — so `SYSTEM_SUPPLIED_FIELDS` skips the values
+  we supplied ourselves. The `degree` warnings in the same run are left standing:
+  those are the model genuinely citing text that does not contain the value it
+  extracted, which is exactly what VR-05 is for. 297 tests pass; ruff clean.
