@@ -254,7 +254,19 @@ adapters:
       root: "./data/artifacts"
 
   llm:
-    provider: "anthropic"      # anthropic | openai | azure_openai | bedrock
+    # anthropic — most accurate. Needs a paid API key; costs a few pence per
+    #             resume. Nothing is trained on your data.
+    # ollama    — FREE, and nothing leaves this machine. Runs the model on your
+    #             own computer: install from https://ollama.com, then
+    #             `ollama pull llama3.1:8b`. A model small enough to run on a
+    #             laptop reads less accurately than a frontier one — that is the
+    #             honest trade, and it is yours to make.
+    #
+    # Deliberately absent: the free tiers of the big hosted APIs. They are free
+    # because they train on what you send, and a resume is a named person's
+    # address, phone number and employment history. That is not a trade an
+    # employer gets to make on a candidate's behalf.
+    provider: "anthropic"      # anthropic | ollama
     model: "claude-sonnet-4-5"
     # Read from the environment, never stored here. See .env.example.
     api_key_env: "ANTHROPIC_API_KEY"
@@ -265,6 +277,13 @@ adapters:
     # Always use the provider's native structured-output mode. Never ask for
     # JSON in prose.
     structured_output: true
+    ollama:
+      model: "llama3.1:8b"
+      host: "http://localhost:11434"
+      # Generous, because this is your own hardware rather than a datacentre:
+      # a laptop without a GPU can take minutes on a long resume, and a timeout
+      # that fires mid-thought looks like a bug rather than a slow machine.
+      timeout_seconds: 300
 
   ats:
     provider: "csv"            # csv | greenhouse | lever | workday | none

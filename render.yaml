@@ -22,9 +22,17 @@
 #
 # WHAT IT COSTS
 #
-# The free plans are enough to try it. Render's free Postgres expires after 30
-# days and free web services sleep when idle, so the first request after a quiet
-# spell is slow. For anything real, change `plan: free` to `starter` on both.
+# The free plans are enough to try it, with one trap worth knowing before you
+# click: Render's FREE POSTGRES DELETES ITSELF 30 DAYS after creation. Free web
+# services also sleep when idle, so the first request after a quiet spell is
+# slow — that part is only an annoyance.
+#
+# If you want this copy to still hold its data in three months, put the database
+# somewhere without a timer. The README's "Free plans, and the trap in them"
+# section walks through pointing DATABASE_URL at a free Neon database instead;
+# the scheme it gives you works here unchanged.
+#
+# For anything with real work in it, change `plan: free` to `starter` on both.
 #
 # BEFORE YOU PUT REAL CANDIDATES IN IT
 #

@@ -8,6 +8,8 @@ Two implementations ship:
   never "please return JSON". The model is handed the schema and physically
   cannot return prose, which is what deletes the repair-prompt loop the original
   specs were built around.
+- `OllamaLLM` — a model on the operator's own machine. Free, private, no key,
+  and the reason someone who has bought nothing can still run this for real.
 - `FakeLLM` — returns a canned payload. Lets the whole pipeline, its validation,
   and its tests run with no API key and no cost. Not a mock of the transport:
   it satisfies the same protocol, so everything downstream is genuinely
@@ -165,6 +167,208 @@ class AnthropicLLM:
         )
 
 
+class OllamaLLM:
+    """LLMAdapter backed by a model running on the operator's own machine.
+
+    This is the adapter that makes the project usable by someone who has not
+    bought anything. Until now the only working model was Anthropic's, which
+    needs a paid key — so a stranger who cloned the repo could run the sample
+    queue with `FakeLLM` and nothing else. That is a demo, not a product.
+
+    Three reasons it is Ollama rather than one of the free hosted tiers:
+
+    1. **Nothing leaves the machine.** Every free hosted tier pays for itself
+       with your data — Google's Gemini free tier, for one, trains on it. A
+       resume is a named person's employment history, address and phone number.
+       Sending that to a training set because the tier was free is not a
+       trade-off an operator can make on a candidate's behalf.
+    2. **No key, no card, no quota.** There is nothing to run out of and
+       nothing to bill.
+    3. **It has real structured output.** `format` takes a JSON schema and
+       constrains decoding to it. That is the same guarantee Anthropic's forced
+       tool use gives, so hard rule 2 holds: the model is never asked to
+       "return JSON" and hoped at.
+
+    The honest trade-off, stated here because the README will state it too: a
+    model small enough to run on a laptop extracts less accurately than a
+    frontier one. This is the difference between free and good, and it is the
+    operator's call — not something to bury.
+
+    Talks HTTP with `urllib` from the standard library rather than the `ollama`
+    package. Two calls against a documented local API do not justify a
+    dependency, and hard rule 9 says the pipeline installs with no extras.
+    """
+
+    def __init__(
+        self,
+        *,
+        model: str = "llama3.1:8b",
+        host: str = "http://localhost:11434",
+        temperature: float = 0.1,
+        max_tokens: int = 4096,
+        timeout_seconds: int = 300,
+        max_retries: int = 2,
+    ) -> None:
+        self._model = model
+        self._host = host.rstrip("/")
+        self.temperature = temperature
+        self.max_tokens = max_tokens
+        # A local model is slow rather than flaky: there is no rate limit and no
+        # shared infrastructure to fail. Retries exist for a restarted daemon,
+        # not for congestion, so two is plenty.
+        self.max_retries = max_retries
+        self.timeout_seconds = timeout_seconds
+        self._digest: str | None = None
+
+    # -- transport ---------------------------------------------------------
+    def _post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
+        import urllib.error
+        import urllib.request
+
+        request = urllib.request.Request(
+            f"{self._host}{path}",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode("utf-8", errors="replace")[:400]
+            if exc.code == 404 and "model" in body:
+                # The single most likely failure, and the message says the fix.
+                raise LLMError(
+                    f"Ollama does not have the model '{self._model}'.",
+                    detail=f"Run:  ollama pull {self._model}",
+                ) from exc
+            raise LLMError(
+                f"Ollama rejected the request ({exc.code}).", detail=body,
+            ) from exc
+        except urllib.error.URLError as exc:
+            raise LLMError(
+                f"Cannot reach Ollama at {self._host}.",
+                detail=(
+                    "Is it running? Start it with  ollama serve  ,or install it "
+                    "from https://ollama.com. Nothing is sent over the internet "
+                    "— this is a program on this machine."
+                ),
+            ) from exc
+
+    @property
+    def model_id(self) -> str:
+        """Name plus content digest, for the audit log (BR-05).
+
+        `llama3.1:8b` is a moving tag exactly like a cloud alias: pull it again
+        in six months and it is different weights under the same name. An audit
+        asking which model rejected a candidate needs the digest, so it is
+        looked up once and carried alongside the name.
+        """
+        if self._digest:
+            return f"{self._model}@{self._digest}"
+        return self._model
+
+    def _get(self, path: str) -> dict[str, Any]:
+        import urllib.error
+        import urllib.request
+
+        request = urllib.request.Request(f"{self._host}{path}", method="GET")
+        with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:
+            return json.loads(response.read().decode("utf-8"))
+
+    def _resolve_digest(self) -> None:
+        """Best effort. A missing digest must never fail a real extraction.
+
+        **From `/api/tags`, not `/api/show`.** This was wrong in the first
+        version and only a real Ollama could say so: `/api/show` returns the
+        modelfile, template, parameters and a `details` block of family and
+        quantisation, and no digest anywhere. The digest is per-tag, so it lives
+        with the tag listing. Written against the documentation, corrected by
+        running it — which is the whole reason the register carried this adapter
+        as unverified.
+        """
+        if self._digest is not None:
+            return
+        self._digest = ""
+        try:
+            listing = self._get("/api/tags")
+        except Exception:      # noqa: BLE001 - provenance is never load-bearing
+            return
+        for entry in listing.get("models") or []:
+            if self._model in (entry.get("name"), entry.get("model")):
+                self._digest = str(entry.get("digest") or "")[:19]
+                return
+
+    # -- the call ----------------------------------------------------------
+    def complete_structured(
+        self,
+        *,
+        system: str,
+        user: str,
+        schema: dict[str, Any],
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> LLMResponse:
+        payload = {
+            "model": self._model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            "stream": False,
+            # Native constrained decoding against the schema — not a request in
+            # prose for JSON. This is the line that keeps hard rule 2.
+            "format": schema,
+            "options": {
+                "temperature": self.temperature if temperature is None else temperature,
+                "num_predict": max_tokens or self.max_tokens,
+            },
+        }
+
+        last_error: Exception | None = None
+        for attempt in range(self.max_retries):
+            try:
+                answer = self._post("/api/chat", payload)
+            except LLMError as exc:
+                if not exc.retryable or attempt == self.max_retries - 1:
+                    raise
+                last_error = exc
+                time.sleep(2 ** attempt)
+                continue
+
+            content = ((answer.get("message") or {}).get("content") or "").strip()
+            if not content:
+                raise LLMRefusedSchema(
+                    "Ollama returned an empty answer.",
+                    detail=f"done_reason={answer.get('done_reason')}",
+                )
+            try:
+                parsed = json.loads(content)
+            except json.JSONDecodeError as exc:
+                # Constrained decoding should make this impossible. When it
+                # happens it means the model or the server ignored `format`,
+                # which is a different failure from a network one and must not
+                # be blind-retried.
+                raise LLMRefusedSchema(
+                    "Ollama did not honour the schema and returned prose.",
+                    detail=content[:300],
+                ) from exc
+
+            self._resolve_digest()
+            return LLMResponse(
+                content=parsed,
+                model_id=self.model_id,
+                input_tokens=int(answer.get("prompt_eval_count") or 0),
+                output_tokens=int(answer.get("eval_count") or 0),
+                stop_reason=answer.get("done_reason") or "stop",
+            )
+
+        raise LLMTimeout(
+            f"Ollama call failed after {self.max_retries} attempts.",
+            detail=str(last_error),
+        )
+
+
 class FakeLLM:
     """LLMAdapter that returns a canned payload. No key, no network, no cost.
 
@@ -216,7 +420,16 @@ def build_llm(config) -> Any:
             timeout_seconds=int(config.get("adapters.llm.timeout_seconds", 120)),
             max_retries=int(config.get("adapters.llm.max_retries", 3)),
         )
+    if provider == "ollama":
+        return OllamaLLM(
+            model=config.get("adapters.llm.ollama.model", "llama3.1:8b"),
+            host=config.get("adapters.llm.ollama.host", "http://localhost:11434"),
+            temperature=float(config.get("adapters.llm.temperature", 0.1)),
+            max_tokens=int(config.get("adapters.llm.max_output_tokens", 4096)),
+            timeout_seconds=int(config.get("adapters.llm.ollama.timeout_seconds", 300)),
+        )
     raise NotImplementedError(
         f"LLM provider '{provider}' is configured but not implemented. "
-        f"Available: anthropic. Others arrive in Phase 5."
+        f"Available: anthropic (paid, most accurate), ollama (free, private, "
+        f"runs on this machine)."
     )

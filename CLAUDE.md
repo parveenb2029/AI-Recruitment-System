@@ -9,15 +9,16 @@ Project context for AI coding sessions. Read this first, every session.
 An AI-assisted recruitment pipeline: resume in, ranked and evidence-cited shortlist
 out, with a human reviewing every decision that affects a candidate.
 
-**Current state (2026-09-12):** was a documentation blueprint; now a working
+**Current state (2026-09-13):** was a documentation blueprint; now a working
 product. `src/recruit/` runs ingest → extract → validate → persist → review →
 match, behind real authentication with role-based access control, with a
 bias-audit harness, a compliance pack, a one-command Docker quickstart, a
-console written in plain English rather than field names, and a one-click path
-to a copy on your own server with your own accounts. 256 tests pass.
+console written in plain English rather than field names, a one-click path to
+a copy on your own server with your own accounts, and a free local model so it
+costs nothing to run for real. 268 tests pass.
 
-Phases 0–3 complete (the vertical slice runs end to end), plus 4.2, 5.1, 5.2
-and 5.3.
+Phases 0–3 complete (the vertical slice runs end to end), plus 4.2, 5.1, 5.2,
+5.3 and 5.4.
 Remaining: the golden set (4.1) and confidence calibration (4.3, blocked on it).
 
 The two scripts under `tools/legacy/` are the original document generators —
@@ -169,6 +170,12 @@ still missing as prominently as what exists.
 ## Working conventions
 
 - **One prompt, one commit.** Commit message = the prompt's goal.
+- **No AI-attribution trailers in commit messages.** The README discloses that
+  the build is AI-assisted, in the operator's own framing and where a reader
+  actually looks. Putting it in commit metadata as well turns a stated fact into
+  a contributor graph, which says something different. Decided 2026-09-13; the
+  two commits already carrying a `Co-Authored-By` line stay as they are, because
+  rewriting published history to look better is a worse story than the trailer.
 - Every prompt carries a `DONE WHEN:` acceptance command. Run it; paste the output.
 - Every session that touches `src/` adds tests and runs `python -m pytest -q`.
 - Record decisions here, in this file, in the session that makes them.
@@ -201,6 +208,7 @@ artifact. Summary:
 | 6.1 | Capture real job-board emails | **operator's homework** — blocks 6.3 |
 | 6.2a | Mail reading: MIME, attachments, filenames, provenance | **done** |
 | 5.3 | Self-hosting: browser account management, public-deploy guard, Render blueprint | **done** — the deploy itself unverified |
+| 5.4 | Free local model (Ollama), console redesign, working dark mode | **done** — never run against a real Ollama |
 | 6.2b–6.12 | Gmail connection, per-source parsers, landing zone, safety gate, screening | not started — `docs/intake_playbook.md` |
 
 ---
@@ -224,6 +232,7 @@ lands. Do not assume anything here exists.
 | ~~**Plain-language console copy**~~ | Phase 3.5 / 5.1 | **Closed 2026-08-23.** `web/humanize.py` plus rewritten templates; the technical values are hidden behind a toggle, not removed, and `tests/test_humanize.py` fails if either half regresses. Original entry kept below for the reasoning. |
 | ~~Plain-language console copy (original entry)~~ | Phase 3.5 / 5.1 | **The console is written for engineers and its users are not.** The audit page column heads are `Run`, `Prompt`, `Model`; the rows carry `workflow_run_id`, `prompt_version`, `model_id`, event names like `auth.login_failed`, and a raw Python dict in `detail`. Reviewers will be recruiters and hiring managers — the operator puts it at 99% non-technical. Needs: human sentences per event ("Parveen signed in" / "Sign-in failed — wrong password"), plain column heads, `detail` rendered as fields rather than a dict, and the same pass over the queue, detail, login and error screens. The jargon must survive *somewhere* — LL144 and GDPR Art. 22 evidence depends on run and model identity — so this is a presentation layer over the existing columns, not a schema change: keep the technical values behind a "Show technical details" toggle or an export. | Next available |
 | **Render deploy never performed** | 5.3 | `render.yaml` is parsed and asserted by a test, and everything it configures was run natively against a live server with `RECRUIT_PUBLIC=1` — but no blueprint has ever been submitted to Render. The first click is the acceptance test. Same shape as the Docker image, carried open for a day and then green in CI on the first try. | Operator's next sitting |
+| **`OllamaLLM` never run against a real Ollama** | 5.4 | Eleven tests drive a real HTTP server that answers the way Ollama's documentation says it does — request body, response shape, and both first-run failures. What has never happened is a call to the actual daemon with actual weights behind it, so the request is right by specification rather than by observation. The operator installing Ollama and extracting one resume is the acceptance test. | Operator's next sitting |
 | Refused account changes are not logged | 5.3 | Blocking a lockout raises before anything is written, so an attempt to switch off the last administrator leaves no trace. Successful changes are recorded; refused ones are not, and repeated attempts are the more interesting signal of the two. Small to add — the guard already holds a session — and deliberately not bundled into a change that was already wide. | Next available |
 | Doc de-duplication | — | Sibling docs still 84–92% identical. Not on the critical path to shipping. | Optional cleanup |
 
@@ -708,3 +717,71 @@ Append here. Newest last.
   parsed and asserted but has never been submitted to Render, and that is in the
   deferred register rather than assumed — the same way the Docker image was
   carried as open for a day until CI built it.
+
+- **2026-09-13** — A free way to actually run it, and a console worth looking at.
+  Two asks from the operator in one sitting: *"the interface is pretty drab like
+  a file not an exciting website"*, and *"i want the visitors to be able to
+  download the app and use it for personal use on their own server in a fully
+  functional way."*
+  **The second one turned out not to be a licensing or packaging problem.** The
+  repository is public and MIT; anyone could already download it. The wall was
+  the model: `AnthropicLLM` needs a paid key, so a stranger who cloned this got
+  `FakeLLM`, the sample queue, and no way to read an actual resume. That is a
+  demo wearing a product's clothes. `OllamaLLM` closes it — a model on the
+  operator's own machine, no key, no card, no quota.
+  **Why Ollama and not a free hosted tier.** The free tiers of the big providers
+  are free because they train on what you send. Gemini's, checked today, says so
+  outright. A resume is a named person's address, phone number and employment
+  history, handed over for one purpose; putting it into a training set to save a
+  few pence is not a trade an employer may make on a candidate's behalf. So the
+  choice is local or paid, and the config comment, the README and the
+  `NotImplementedError` all say why rather than leaving it as an unexplained
+  gap. The accuracy trade is stated in the same breath, in all three places: a
+  model small enough for a laptop reads a resume less reliably than a frontier
+  one. Free and good are different axes and the operator picks.
+  Hard rule 2 holds without an exception: Ollama's `format` takes a JSON schema
+  and constrains decoding to it, which is the same guarantee as Anthropic's
+  forced tool use — `test_the_schema_is_sent_as_a_constraint_not_as_a_request`
+  asserts the schema arrives in `format` rather than in the prompt, because the
+  difference is invisible from outside until the day a model ignores it.
+  Two decisions worth keeping. (1) **`model_id` carries the digest**, not just
+  the tag. `llama3.1:8b` is a moving pointer exactly like a cloud alias; pull it
+  next year and the weights differ under the same name, and BR-05 exists so that
+  "which model rejected this candidate" has an answer. The lookup is best-effort
+  and a failed one never fails an extraction. (2) **Standard library `urllib`,
+  no `ollama` package.** Two calls against a documented local API do not justify
+  a dependency when hard rule 9 promises the pipeline installs with no extras.
+  The two errors a first-time user will actually hit — daemon not running, model
+  not pulled — are tested for their *wording*, not just their type: one names
+  `ollama serve` and states plainly that nothing is sent over the internet, the
+  other names `ollama pull <model>`. 11 new tests against a real HTTP server
+  rather than a mocked client, because this adapter is almost entirely
+  transport. 268 pass; ruff clean.
+  **The redesign.** Warm paper and warm ink instead of enterprise grey, a
+  display serif against a humanist sans, cards with soft shadows, one terracotta
+  accent, and a sign-in screen that says what the product is rather than only
+  taking a password. Webfonts load from a CDN with a full system stack behind
+  them — an improvement, not a dependency, which is the only basis on which a
+  container-first app should reach out at all.
+  **Dark mode had never worked.** `data-theme="light"` was hardcoded on `<html>`
+  since Phase 3.5, so `:root:not([data-theme="light"])` could never match and
+  the entire dark palette sat dead in the stylesheet. It works now, with a
+  three-state control — system, light, dark — because a toggle that only knows
+  on and off takes away "follow my laptop" the first time it is touched. The
+  dark palette is written once in a Jinja `set` and emitted into both selectors;
+  two hand-maintained copies of twelve colours is how a theme ends up
+  half-applied. A pre-paint inline script reads the saved choice so dark-mode
+  users do not get a white flash on every page.
+  **Two defects the screenshots caught.** White text on the dark-mode accent was
+  unreadable — dark mode lightens the accent to stay visible against a dark
+  page, at which point `#fff` on it fails contrast. What goes *on* the accent is
+  now its own token that flips with the theme. And a single-letter display name
+  stacked above "Administrator" in the header read as a rendering fault rather
+  than a person; it is one line now.
+  Also this sitting: the branding gate caught a hardcoded Windows path in a
+  docstring I had just written, which is the gate working on its author.
+  And `render.yaml` was pointing at Render's free Postgres, **which deletes
+  itself 30 days after creation** — a demo that would quietly die a month after
+  being set up, at precisely the moment nobody is watching it. The blueprint and
+  the README now say so in those words and walk through pointing `DATABASE_URL`
+  at a free Neon database instead, which has no timer.

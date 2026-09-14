@@ -181,15 +181,44 @@ database prompt, database rules vanish if a migration is skipped.
 
 ## Using it on your own resumes
 
-### 1. Add your API key
+### 1. Choose a model
 
-The demo queue is fake. Real extraction needs a model.
+The demo queue is fake. Real extraction needs a model, and there are two ways to
+get one.
+
+**Free, and nothing leaves your machine.** Install [Ollama](https://ollama.com),
+pull a model, and point the config at it:
+
+```bash
+ollama pull llama3.1:8b
+```
+
+```yaml
+adapters:
+  llm:
+    provider: "ollama"
+```
+
+No key, no card, no quota, no request leaving the building. This is the right
+choice for real candidates on a machine you control. The trade is accuracy: a
+model small enough to run on a laptop reads a resume less reliably than a
+frontier one, and you should expect to check more of its work.
+
+**Paid, and more accurate.** An Anthropic key, a few pence per resume:
 
 ```bash
 cp .env.example .env          # copy .env.example .env   on Windows
 ```
 
 Put your key in `ANTHROPIC_API_KEY=`. Nothing else in that file is required.
+
+**Why there is no "free hosted API" option.** The big providers' free tiers are
+free because they train on what you send them. A resume is a named person's
+address, phone number and employment history, submitted to you for one purpose.
+Putting that into someone's training set to save a few pence is not a decision
+an employer is entitled to make on a candidate's behalf, so this project does
+not offer it as a convenience. Run it locally, or pay for a tier that does not
+train on your data.
 
 ### 2. Point it at your organization
 
@@ -328,11 +357,27 @@ Render, Fly, Railway, Heroku, Cloud Run and Azure App Service are recognised as
 public automatically. On anything else, set `RECRUIT_PUBLIC=1` so the same
 protection applies.
 
-### Free plans
+### Free plans, and the trap in them
 
-Render's free Postgres expires after 30 days and free web services sleep when
-idle, so the first request after a quiet spell is slow. Fine for trying it;
-change `plan: free` to `starter` in `render.yaml` for anything real.
+Free web services sleep after about fifteen minutes idle, so the first request
+after a quiet spell takes a minute to wake. That is an annoyance.
+
+**Render's free Postgres deletes itself 30 days after you create it.** That is
+not an annoyance — it is your data gone, on a timer, at the moment you have
+stopped thinking about it. If this copy is a demo you want to still be there
+when someone clicks the link in three months, move the database off Render:
+
+1. Sign up at [neon.com](https://neon.com) — free tier, no card, no expiry, and
+   it sleeps to zero when idle rather than being deleted.
+2. Copy the connection string it gives you.
+3. In your Render dashboard, set `DATABASE_URL` to that string.
+4. Delete the Render database, so nothing is paying rent.
+
+The scheme Neon hands you works unchanged — `db.session.normalise_url` rewrites
+it for the driver this project ships.
+
+For anything with real work in it, change `plan: free` to `starter` on the web
+service as well.
 
 ---
 
