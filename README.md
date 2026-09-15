@@ -113,8 +113,19 @@ appear in a log that cannot be edited or deleted.
 
 That is the whole product in three minutes. The remaining seven are below.
 
-**Watch the terminal on first start.** If the config asks for real accounts, an
-administrator is created and its password is printed **once**:
+**If the config asks for real accounts**, the first screen you get is not a
+sign-in form — it is *"Nobody has claimed this copy yet."* Enter an email,
+choose a password, and you are signed in as the administrator. That screen then
+disappears permanently; it can only ever be used once.
+
+There is nothing to read out of a log, and no password to copy. On a machine
+you are sitting at, whoever can reach `localhost` is already the person at the
+keyboard, so setup is open. On a public deployment it is not — see
+[Running your own copy on a server](#running-your-own-copy-on-a-server) below.
+
+Supplying `RECRUIT_ADMIN_EMAIL` instead creates that account up front and
+prints a generated password once, which is still the right answer for a
+scripted install:
 
 ```
   ================================================================
@@ -328,10 +339,19 @@ administrator email, and optionally an Anthropic API key. Fork it first if you
 want to change anything — the button deploys whatever repository it points at,
 and you cannot edit this one.
 
-**Open the service log as soon as the first deploy finishes.** The
-administrator password is generated on first start and printed there exactly
-once. It is not in `render.yaml` and not in any file — this repository is
-public, and a password in a public repository is a password to change.
+**Claiming it, once the deploy finishes.** Open your service's URL with
+`/setup?token=...` on the end. The token is in the Render dashboard under
+**Environment**, as `RECRUIT_SETUP_TOKEN` — Render generates it, so nobody
+chose it and it is in no file. Enter your email, pick a password, and that
+screen is gone for good.
+
+A laptop needs no token and a server does, for one reason: between this service
+starting and you first opening it, **whoever reaches `/setup` first becomes its
+administrator** — and on a public URL that is everyone. The dashboard is the one
+channel a stranger holding your URL does not have, so the secret travels through
+it. Delete `RECRUIT_SETUP_TOKEN` if you would rather use
+`python -m recruit.bootstrap` from a shell; the setup page then does not exist
+at all, which is the safe direction to fail in.
 
 Everything else is the same product you ran locally. The differences a server
 forces are these:
@@ -427,7 +447,7 @@ prompt for a human to look, not a measurement to act on.
 
 | Command | What it does |
 |---------|--------------|
-| `python -m recruit.bootstrap` | Create the schema and the first administrator. Safe to re-run. |
+| `python -m recruit.bootstrap` | Create the schema, and the first administrator if you pass `--email`. Without one it leaves the account to the browser setup screen. Safe to re-run. |
 | `python -m recruit.seed` | Fill the queue from `samples/`, using the fake model. `--force` replays it. |
 | `python -m recruit.web` | Start the review console. |
 | `python -m recruit.extract <file>` | Extract one document. Real model. |
@@ -491,11 +511,17 @@ and broke something.
 
 ### If you are reading this to judge the engineering
 
-The parts worth your time, roughly in order:
+If you would rather read prose than source, **[`docs/walkthrough.md`](docs/walkthrough.md)**
+is a plain-language tour of the whole repository: what every folder holds, the
+eleven decisions that shaped it with the alternative each one rejected, and a
+section on what is still not true. No engineering background assumed.
+
+Otherwise, the parts worth your time, roughly in order:
 
 | Where | Why it is interesting |
 |-------|----------------------|
 | `CLAUDE.md` decision log | Every non-obvious decision, with the reasoning and the defects that forced it. Including the ones that were wrong first. |
+| `src/recruit/firstrun.py` | Who may claim the first account, and why the rule differs between a laptop and a public URL. Closed setup, unconfigured setup and a wrong token all answer 404 — a 403 would confirm the instance exists. |
 | `src/recruit/validate.py` | VR-03 — every quoted detail is fuzzy-matched back against the source document. The primary defence against a model inventing an employer. |
 | `src/recruit/match.py` | `model_facing_schema()` strips the score fields before the call, so the model is *structurally incapable* of returning an overall fit score. A future prompt edit cannot reintroduce one. |
 | `src/recruit/db/migrations.py` | The audit log is append-only in two layers — no mutating method in code, and a database trigger. Either alone is theatre. |
