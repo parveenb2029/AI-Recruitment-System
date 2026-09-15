@@ -96,10 +96,41 @@ def test_supplied_password_is_never_echoed(db_url, local_auth, monkeypatch, caps
     assert auth.login("boss@example.com", "correct-horse-battery-staple") is not None
 
 
-def test_refuses_to_guess_an_administrator(db_url, local_auth, monkeypatch, capsys):
+def test_no_email_is_not_a_failure_when_the_browser_can_finish_the_job(
+        db_url, local_auth, monkeypatch, capsys):
+    """This used to exit 1, and that was right until there was a second way in.
+
+    Now the first account can be created at `/setup`, so a container whose
+    operator supplied no email should start and wait for them. A stack that
+    dies on a missing optional variable is precisely what a non-technical
+    person cannot diagnose — and refusing to boot would put back the wall this
+    change exists to remove.
+    """
     monkeypatch.delenv("RECRUIT_ADMIN_EMAIL", raising=False)
+    monkeypatch.setenv("RECRUIT_PUBLIC", "0")
+
+    assert bootstrap.main(["--url", db_url]) == 0
+    assert "setup screen" in capsys.readouterr().out
+    # Crucially, it still did not invent an account.
+    auth = LocalAuth(make_session_factory(create_engine_from_config(url=db_url)))
+    assert auth.list_users() == []
+
+
+def test_no_email_and_no_way_in_still_fails_loudly(db_url, local_auth,
+                                                   monkeypatch, capsys):
+    """A public deployment with no setup token has neither door open.
+
+    Exiting 0 there would leave a console nobody can ever sign in to, looking
+    healthy. This is the case that must still stop and say so.
+    """
+    monkeypatch.delenv("RECRUIT_ADMIN_EMAIL", raising=False)
+    monkeypatch.setenv("RECRUIT_PUBLIC", "1")
+    monkeypatch.delenv("RECRUIT_SETUP_TOKEN", raising=False)
+
     assert bootstrap.main(["--url", db_url]) == 1
-    assert "RECRUIT_ADMIN_EMAIL" in capsys.readouterr().err
+    error = capsys.readouterr().err
+    assert "RECRUIT_ADMIN_EMAIL" in error
+    assert "RECRUIT_SETUP_TOKEN" in error
 
 
 def test_single_user_mode_creates_no_account_and_warns(db_url, monkeypatch, capsys):

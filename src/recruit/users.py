@@ -15,18 +15,12 @@ import argparse
 import getpass
 import sys
 
-from .auth import ROLES, AuthError
+from .auth import OBVIOUS_PASSWORDS, ROLES, AuthError, check_password_quality
 from .db.auth_repository import LocalAuth
 from .db.migrations import create_all
 from .db.session import create_engine_from_config, make_session_factory
 
-# Not a substitute for a real password policy — just the handful that turn up
-# first in any wordlist. A length check alone lets "12345678" through.
-OBVIOUS_PASSWORDS = {
-    "12345678", "123456789", "1234567890", "password", "password1",
-    "qwertyui", "abc12345", "11111111", "00000000", "iloveyou",
-    "letmein1", "admin123", "welcome1", "passw0rd",
-}
+__all__ = ["OBVIOUS_PASSWORDS", "main"]
 
 
 def _adapter(url: str | None):
@@ -61,12 +55,8 @@ def _prompt_password() -> str:
 
 
 def _warn_if_obvious(password: str) -> None:
-    if password.lower() in OBVIOUS_PASSWORDS:
-        raise AuthError(
-            "That password is one of the most-guessed in existence.\n"
-            "  Hashing cannot save a password a wordlist already contains.\n"
-            "  Pick something else — a short phrase works well."
-        )
+    """The same rule the setup screen applies, from the same place."""
+    check_password_quality(password)
 
 
 def main(argv: list[str] | None = None) -> int:

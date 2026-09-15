@@ -165,6 +165,23 @@ those are internal or template-stage.** LL144 needs an *independent* audit, and
 no DPIA has actually been performed — `docs/compliance/README.md` lists what is
 still missing as prominently as what exists.
 
+**Who owes the DPIA — settled 2026-09-14, do not re-raise as project debt.**
+The duty under Art. 35 attaches to the **controller**: whoever decides to
+process real applicants' data. Publishing code is not processing. So:
+
+- **A stranger who self-hosts** is their own controller and owes their own
+  DPIA. We cannot perform it — it needs their lawful basis, their retention
+  periods, their DPO, their supervisory authority. What we owe them is an
+  honest template and accurate engineering facts to cite, which is what
+  `docs/compliance/` is. That is a **shipped deliverable, not an open gap.**
+- **The Phase 7 demo** processes invented candidates only. No personal data,
+  no DPIA. This is one of the reasons demo mode refuses uploads rather than
+  warning about them — the refusal is what keeps the claim true.
+- **The operator** owes one **the day Phase 6 intake points at a real inbox
+  and a real application lands.** That is the line, and 6.1 is the step that
+  crosses it. Recorded against Phase 6 in the register, not carried as a
+  standing failure of the project.
+
 ---
 
 ## Working conventions
@@ -211,6 +228,9 @@ artifact. Summary:
 | 5.4 | Free local model (Ollama), console redesign, working dark mode | **done and verified** — real extraction run |
 | 5.5 | `field_confidence` made grammar-enforceable | **done** — old envelopes still readable |
 | 6.2b–6.12 | Gmail connection, per-source parsers, landing zone, safety gate, screening | not started — `docs/intake_playbook.md` |
+| 7.0–7.10 | Workspaces, sign-up, demo mode | **planned** — `docs/phase7_playbook.md`, eleven prompts |
+| 8.0 | Browser first-run setup (no log reading) | **done and verified** — run natively, both local and public-with-token |
+| 8.1–8.x | Windows installer, model included | not started — research done, see decision log |
 
 ---
 
@@ -235,6 +255,7 @@ lands. Do not assume anything here exists.
 | **Render deploy never performed** | 5.3 | `render.yaml` is parsed and asserted by a test, and everything it configures was run natively against a live server with `RECRUIT_PUBLIC=1` — but no blueprint has ever been submitted to Render. The first click is the acceptance test. Same shape as the Docker image, carried open for a day and then green in CI on the first try. | Operator's next sitting |
 | ~~**`OllamaLLM` never run against a real Ollama**~~ | 5.4 | **Closed 2026-09-14.** The operator installed Ollama, pulled a 3B model and ran a real extraction: correct name, email, two roles and nine skills out of an actual PDF, with no API key. It immediately found a defect no test could — the digest lookup asked `/api/show`, which carries no digest at all; it lives in `/api/tags`. Right by the documentation, wrong against the daemon. | — |
 | Refused account changes are not logged | 5.3 | Blocking a lockout raises before anything is written, so an attempt to switch off the last administrator leaves no trace. Successful changes are recorded; refused ones are not, and repeated attempts are the more interesting signal of the two. Small to add — the guard already holds a session — and deliberately not bundled into a change that was already wide. | Next available |
+| **DPIA for the operator's own instance** | Phase 6 | Not project debt — see the compliance section above. A self-hoster owes their own; the demo has no personal data to assess. This row exists for the one case that *is* the operator's: the day 6.1 points intake at a real inbox and a stranger's application arrives, the operator becomes a controller of real applicants' data and owes a performed DPIA, not a template. Filling in `docs/compliance/dpia.md` is the deliverable, and it needs facts (lawful basis, retention, who the DPO is) rather than code. | Before 6.1 processes a real application |
 | **Project walkthrough guide — owed to the operator** | asked 2026-09-13 | Not technical debt; a promised deliverable. A plain-language tour of the whole repository for someone who is not an engineer: what every folder holds, what decision was made at each step, why it was made, what the alternative was, and why the architecture ended up this shape. The raw material already exists in this file's decision log — but that log is written for a coding session, not for a reader, and it is 700 lines. Written **after** the build is ready, not during, so it describes what shipped rather than what was planned. | After Phase 7 |
 | Doc de-duplication | — | Sibling docs still 84–92% identical. Not on the critical path to shipping. | Optional cleanup |
 
@@ -1034,3 +1055,106 @@ Append here. Newest last.
   we supplied ourselves. The `degree` warnings in the same run are left standing:
   those are the model genuinely citing text that does not contain the value it
   extracted, which is exactly what VR-05 is for. 297 tests pass; ruff clean.
+
+- **2026-09-14** — Phase 8.0. The first account moves into the browser, and why
+  that needed a security decision rather than a form.
+  Asked for by the operator, who wants the download path usable by people who
+  do not code: *"we need to hand it to them on a platter."* Auditing the
+  easiest existing route — the Render button — found exactly two steps a
+  non-technical person cannot complete: pasting an API key, and **opening a
+  service log to find the generated first-run password.** The second is this
+  prompt; the first is what the installer is for.
+  **The hole this opens, stated before the fix.** A console with no accounts is
+  a console anyone can claim. Between an instance starting and its owner first
+  visiting it, whoever reaches `/setup` first becomes its administrator — and on
+  a public URL that is everyone. This is not theoretical; it is how self-hosted
+  software gets taken over.
+  **So the rule is split by where the thing is running**, reusing
+  `hosting.is_public()` rather than growing a second definition of "public".
+  On a machine somebody is sitting at, setup is open: whoever can reach
+  localhost is already the person at the keyboard, and a token there protects
+  nothing while costing the entire benefit. On a public deployment setup needs
+  a token supplied out of band — the operator has a dashboard, which is the one
+  channel a stranger holding the URL does not have. `render.yaml` uses
+  `generateValue: true` so the platform invents it, nothing secret is written
+  into a public repository, and nobody is asked to make up a password in a web
+  form before the service has finished deploying.
+  **Fail closed, as everywhere else in `hosting`.** A public deployment with no
+  token configured gets *no setup page at all* and falls back to `bootstrap`.
+  An unset variable is somebody who has not made a decision, and guessing
+  "open" on their behalf is how the window gets left open by accident instead
+  of on purpose. A test asserts the blueprint generates the token rather than
+  carrying a literal one.
+  **404, never 403 — three times over.** Setup that is finished, setup that is
+  not configured, and a wrong token all answer identically. A 403 would confirm
+  there is a configured console at this address, which is a true fact about
+  somebody else's system that a stranger should not be able to harvest by
+  probing; and "wrong token" specifically tells a prober that guessing is worth
+  continuing. Same reasoning the Phase 7 plan reaches for on cross-workspace
+  reads, arrived at independently here, which is mildly reassuring about the
+  rule.
+  Three smaller decisions. The token is compared with `hmac.compare_digest` and
+  an unset variable can never be satisfied by a missing parameter — the
+  empty-versus-empty case is the one that quietly opens a door. The policy
+  lives in `src/recruit/firstrun.py`, not in a route, so it can be read and
+  tested without starting a web server. And **`OBVIOUS_PASSWORDS` moved from
+  `users.py` into `auth.py`**: the wordlist refusal had existed on the command
+  line since Phase 5.1, and a browser path that accepted `password1` would mean
+  the enforced policy depended on which door somebody walked through. A rule
+  enforced on one of two paths is not a rule.
+  `bootstrap` no longer exits 1 when no administrator email is supplied — it
+  says the console will offer a setup screen and returns 0. That was correct
+  until there was a second way in; a container that dies on a missing optional
+  variable is precisely what a non-technical person cannot diagnose. It still
+  fails loudly in the one case where *neither* door is open, because exiting 0
+  there would leave a healthy-looking console nobody can ever sign in to.
+  **A real defect the tests caught, on the database everyone actually gets.**
+  The route wrote its audit row on the request's session and then called
+  `auth.login`, which opens its own. The first write takes a lock the second
+  waits on, and on SQLite — the default install, per hard rule 9 — that is a
+  deadlock rather than a slowdown. Login now happens first. Postgres would have
+  hidden this completely.
+  Verified by running it, not by asserting it: bootstrap on an empty database,
+  the redirect from `/` to `/setup`, the wordlist refusal on screen, a real
+  sign-up returning a session cookie, the queue rendering as "K / Administrator",
+  `/setup` answering 404 immediately afterwards, the audit row
+  (`auth.first_run_setup`, actor `k@example.com`, `via: browser`), and then the
+  whole thing again with `RECRUIT_PUBLIC=1` where no token and a wrong token
+  both 404 while the right one opens. 318 tests pass; ruff clean; branding gate
+  green.
+
+- **2026-09-14** — Phase 8 research: how a non-coder gets this on Windows.
+  Recorded because it changes the plan and because two of the four findings are
+  counter-intuitive enough to be re-litigated otherwise.
+  **(1) Paying would not have solved it.** EV code-signing certificates stopped
+  conferring SmartScreen reputation in 2024; Microsoft's own documentation now
+  says paying the premium for that purpose "is no longer justified". A
+  $400/year certificate still shows "Windows protected your PC" until
+  reputation accrues over weeks and hundreds of clean installs. The operator's
+  constraint — no money — costs less than it appears to.
+  **(2) The Microsoft Store is free and removes the warning entirely.**
+  Individual developer registration was $19 and the fee was waived in September
+  2025. Store apps are re-signed by Microsoft and carry full reputation, so
+  there is no SmartScreen prompt at all. The price is not money: it is
+  government-ID-and-selfie identity verification plus Store certification. That
+  is the operator's call to make and nobody else's, and it stays open — the
+  packaging is to be built so a Store submission is a later step rather than a
+  rewrite.
+  **(3) Unsigned is shippable but hostile to exactly our audience.** A plain
+  installer from GitHub Releases costs nothing, but every visitor sees a
+  security warning, and unsigned files cannot inherit reputation — **every new
+  version starts from zero.** To a non-technical person that prompt reads as a
+  virus alert, which is precisely the reaction we are trying to avoid.
+  **(4) Ollama is MIT licensed**, so the inference engine can legally be
+  redistributed inside an installer. That is what removes the API-key wall: no
+  account, no card, and nothing about a candidate leaving the machine. Note as
+  a risk to verify rather than assume: Ollama's own tracker carries an open
+  issue about silent/administrative installation being unreliable, so the
+  unattended-install path must be proven on a real Windows machine before the
+  design depends on it.
+  **Where the build has to happen.** Neither the coding environment (Linux) nor
+  the operator's bridge (also a Linux VM) can produce a Windows binary, so the
+  installer is a GitHub Actions artifact from a `windows-latest` runner. Same
+  machine that built the Docker image when nothing local could, and the same
+  reason it satisfies hard rule 6: a runner has none of the dependencies
+  installed.

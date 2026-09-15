@@ -14,11 +14,24 @@
 #                         fake model on the sample resumes; add it later, in the
 #                         dashboard, when you want to process a real one.
 #
-# The administrator PASSWORD is not asked for and is not set here. It is
-# generated on first start and printed once to the service log — open Logs in
-# the Render dashboard immediately after the first deploy and copy it. A
-# password nobody chose is a password nobody reused, and a password that is not
-# in this file is a password that cannot be committed to a public repository.
+# The administrator PASSWORD is not asked for and is not set here — you choose
+# it in the browser on your first visit.
+#
+#   1. When the deploy finishes, open your service's URL with /setup on the end
+#      and the setup token after it:   https://YOUR-APP.onrender.com/setup?token=...
+#   2. The token is in the Render dashboard under Environment, as
+#      RECRUIT_SETUP_TOKEN. Render generates it; nobody chose it and it is in no
+#      file, so it cannot be committed to a public repository.
+#   3. Enter your email and pick a password. That screen then disappears for
+#      good — it can only ever be used once.
+#
+# Why a token at all, when a laptop install needs none: between this service
+# starting and you first opening it, whoever reaches /setup first becomes its
+# administrator, and on a public URL that is everyone. The dashboard is the one
+# channel a stranger with your URL does not have, so the secret travels through
+# it. If you would rather not, delete RECRUIT_SETUP_TOKEN and use
+# `python -m recruit.bootstrap` from a shell instead — the setup page then does
+# not exist at all.
 #
 # WHAT IT COSTS
 #
@@ -78,6 +91,13 @@ services:
       # ask again on later deploys; change it in the dashboard.
       - key: RECRUIT_ADMIN_EMAIL
         sync: false
+
+      # Render generates this and shows it under Environment. It is what lets
+      # you, and only you, open /setup and claim the first account. Nothing
+      # secret is written into this public repository, and you are not asked to
+      # invent a password in a web form before the thing has even deployed.
+      - key: RECRUIT_SETUP_TOKEN
+        generateValue: true
 
       # Optional, and deliberately not in any file. The repository is public;
       # a key committed to it is a key to rotate. Paste it into the dashboard —

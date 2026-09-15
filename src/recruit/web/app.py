@@ -13,8 +13,14 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .. import confidence, hosting
-from ..auth import ROLES, AuthError, PermissionDenied, Principal
+from .. import confidence, firstrun, hosting
+from ..auth import (
+    ROLES,
+    AuthError,
+    PermissionDenied,
+    Principal,
+    check_password_quality,
+)
 from ..db.auth_repository import build_auth
 from ..db.models import AuditLog, Document, ReviewTask, WorkflowRun
 from ..db.repository import Repository
@@ -265,6 +271,100 @@ def create_app(
         )
         return RedirectResponse(url="/", status_code=303)
 
+    # -- first run ----------------------------------------------------------
+    # The one step that a non-technical person could not complete: the very
+    # first password was generated into a server log. The policy about who may
+    # claim the first account lives in `recruit.firstrun`, not here, so that the
+    # rule can be read and tested without starting a web server.
+    def _setup_closed() -> None:
+        """404, never 403.
+
+        A 403 says "there is a configured console at this address", which is a
+        true fact about somebody else's system that a stranger should not be
+        able to harvest by probing. 404 says nothing at all.
+        """
+        raise HTTPException(status_code=404, detail="Not found")
+
+    def _setup_page(request: Request, *, token: str | None,
+                    problem: str | None = None, email: str = "",
+                    status_code: int = 200):
+        return templates.TemplateResponse(
+            request, "setup.html",
+            {"problem": problem, "email": email, "token": token or "",
+             "token_required": firstrun.token_is_required()},
+            status_code=status_code,
+        )
+
+    @app.get("/setup", response_class=HTMLResponse)
+    def setup_form(request: Request, token: str | None = None):
+        if not firstrun.setup_is_available(auth):
+            _setup_closed()
+        if not firstrun.token_matches(token):
+            # Deliberately the same answer as "setup is finished". Telling a
+            # prober that the token was merely wrong confirms both that setup is
+            # open and that guessing is worth continuing.
+            _setup_closed()
+        return _setup_page(request, token=token)
+
+    @app.post("/setup", response_class=HTMLResponse)
+    def setup_submit(request: Request,
+                     email: str = Form(...),
+                     password: str = Form(...),
+                     confirm: str = Form(default=""),
+                     display_name: str = Form(default=""),
+                     token: str = Form(default=""),
+                     session: Session = Depends(get_session)):
+        # Re-checked on POST rather than trusted from the GET. The form is a
+        # convenience; the route is the boundary, the same way every other
+        # permission in this console is enforced at the route and not in a
+        # template.
+        if not firstrun.setup_is_available(auth) or not firstrun.token_matches(token):
+            _setup_closed()
+
+        if confirm and password != confirm:
+            return _setup_page(request, token=token, email=email,
+                               problem="Those two passwords are not the same.",
+                               status_code=400)
+        try:
+            check_password_quality(password)
+            principal = auth.create_user(
+                email, password,
+                display_name=display_name.strip() or humanize.actor_name(email),
+                role="admin",
+            )
+        except AuthError as denied:
+            return _setup_page(request, token=token, email=email,
+                               problem=str(denied), status_code=400)
+
+        # Sign them in rather than sending them to a login screen to retype the
+        # password they chose four seconds ago. `login` is used rather than
+        # minting a token here so there is one code path that issues sessions.
+        #
+        # **Before the audit write, deliberately.** The auth adapter opens its
+        # own database session; writing to the request's session first takes a
+        # write lock that the adapter's session then waits on, and on SQLite —
+        # the default install, per hard rule 9 — that is a deadlock, not a
+        # slowdown. Found by the tests for this route, on the database everyone
+        # who installs this actually gets.
+        result = auth.login(email, password)
+
+        Repository(session).append_audit(
+            event="auth.first_run_setup", actor=principal.email,
+            actor_role=principal.role,
+            detail={"account": principal.email, "via": "browser"},
+        )
+
+        response = RedirectResponse(url="/", status_code=303)
+        if result is not None:
+            _, session_token = result
+            response.set_cookie(
+                SESSION_COOKIE, session_token,
+                httponly=True, samesite="lax",
+                secure=hosting.secure_cookie(config) if config else False,
+                max_age=60 * 60 * 12,
+            )
+        return response
+
     # -- login -------------------------------------------------------------
     @app.get("/login", response_class=HTMLResponse)
     def login_form(request: Request, error: str | None = None,
@@ -427,6 +527,14 @@ def create_app(
     @app.exception_handler(NotAuthenticated)
     def _not_authenticated(request: Request, _exc: NotAuthenticated):
         if _wants_html(request):
+            # A brand-new install has no credentials to type. Sending someone to
+            # a sign-in screen they cannot possibly pass is the wall this phase
+            # exists to remove, so an unconfigured console opens on setup
+            # instead. Only where setup is actually available — on a public
+            # deployment with no token configured it is not, and /login with the
+            # bootstrap path behind it remains the honest answer.
+            if firstrun.setup_is_available(auth):
+                return RedirectResponse(url="/setup", status_code=303)
             # Preserve where they were headed so sign-in returns them there.
             target = request.url.path
             suffix = f"?next={target}" if target not in ("/", "/login") else ""

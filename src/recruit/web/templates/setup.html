@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Set up your console{% endblock %}
+{% block head %}
+<style>
+/* The first screen on a brand-new copy. It replaces a generated password
+   printed into a server log, which is a step somebody who has just installed
+   this has no way to complete. So it asks for as little as possible and
+   explains what it is doing, because trust on this screen is everything: it is
+   the one page that hands out administrator rights. */
+main{max-width:none;padding:0}
+.split{display:grid;grid-template-columns:1.05fr .95fr;min-height:calc(100vh - 62px)}
+.pitch{
+  background:linear-gradient(160deg,var(--surface-2),var(--paper) 65%);
+  border-right:1px solid var(--rule);
+  padding:64px 56px;display:flex;flex-direction:column;justify-content:center;
+}
+.pitch .kicker{
+  font-size:12px;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--accent-ink);font-weight:700;margin:0 0 14px;
+}
+.pitch h1{
+  font-family:var(--display);font-size:38px;line-height:1.15;font-weight:600;
+  margin:0 0 16px;letter-spacing:-.025em;max-width:17ch;
+}
+.pitch p{font-size:16px;color:var(--ink-2);margin:0 0 28px;max-width:44ch}
+.points{list-style:none;padding:0;margin:0;display:grid;gap:14px;max-width:46ch}
+.points li{display:flex;gap:12px;align-items:flex-start;font-size:14.5px;color:var(--ink-2)}
+.points .n{
+  flex:none;width:22px;height:22px;border-radius:7px;margin-top:1px;
+  background:var(--accent-soft);color:var(--accent-ink);
+  display:grid;place-items:center;font-size:12px;font-weight:700;
+}
+.side{display:flex;align-items:center;justify-content:center;padding:48px 32px}
+.box{width:100%;max-width:380px}
+.box h2{font-family:var(--display);font-size:26px;font-weight:600;margin:0 0 6px;letter-spacing:-.02em}
+.box .sub{margin:0 0 26px;color:var(--muted);font-size:14px}
+.box label{display:block;font-size:13px;font-weight:600;margin:0 0 6px;color:var(--ink-2)}
+.box input{width:100%;margin-bottom:16px}
+.box .hint{margin:-10px 0 18px;font-size:12.5px;color:var(--muted)}
+.box button[type=submit]{width:100%;padding:11px;font-size:15px}
+.problem{
+  background:var(--accent-soft);border-left:3px solid var(--accent);
+  padding:12px 14px;border-radius:8px;margin:0 0 20px;font-size:14px;
+  color:var(--ink);
+}
+@media (max-width:860px){
+  .split{grid-template-columns:1fr;min-height:0}
+  .pitch{padding:40px 24px;border-right:none;border-bottom:1px solid var(--rule)}
+  .pitch h1{font-size:29px}
+  .side{padding:36px 24px}
+}
+</style>
+{% endblock %}
+{% block content %}
+<div class="split">
+  <section class="pitch">
+    <p class="kicker">First run</p>
+    <h1>Nobody has claimed this copy yet.</h1>
+    <p>
+      Create the administrator account and it is yours. This screen disappears
+      the moment you do — it can only ever be used once.
+    </p>
+    <ul class="points">
+      <li><span class="n">1</span>
+        <span>Your password is stored only as a scrambled form of itself. Nobody,
+          including whoever built this, can read it back.</span></li>
+      <li><span class="n">2</span>
+        <span>Everything stays on this machine unless you connect it to
+          something else yourself.</span></li>
+      <li><span class="n">3</span>
+        <span>You can add colleagues afterwards from the Team page, without
+          touching a command line.</span></li>
+    </ul>
+  </section>
+
+  <section class="side">
+    <div class="box">
+      <h2>Create your account</h2>
+      <p class="sub">This account can do everything, including adding and removing people.</p>
+
+      {% if problem %}<div class="problem">{{ problem }}</div>{% endif %}
+
+      <form method="post" action="/setup" autocomplete="on">
+        {% if token_required %}<input type="hidden" name="token" value="{{ token }}">{% endif %}
+
+        <label for="email">Your email address</label>
+        <input id="email" name="email" type="email" required autofocus
+               value="{{ email }}" autocomplete="username"
+               placeholder="you@example.com">
+
+        <label for="display_name">Your name <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+        <input id="display_name" name="display_name" type="text"
+               autocomplete="name" placeholder="Taken from your email if left blank">
+
+        <label for="password">Choose a password</label>
+        <input id="password" name="password" type="password" required
+               autocomplete="new-password" minlength="8">
+        <p class="hint">At least 8 characters. A short phrase is easier to remember and harder to guess than a scrambled word.</p>
+
+        <label for="confirm">Type it again</label>
+        <input id="confirm" name="confirm" type="password" required
+               autocomplete="new-password" minlength="8">
+
+        <button type="submit">Create account and sign in</button>
+      </form>
+    </div>
+  </section>
+</div>
+{% endblock %}

@@ -64,6 +64,36 @@ class PermissionDenied(AuthError):
 
 
 # -- passwords ----------------------------------------------------------------
+# Not a substitute for a real password policy — just the handful that turn up
+# first in any wordlist. A length check alone lets "12345678" through.
+#
+# This lives here rather than in `users.py` because the CLI is no longer the
+# only place a human chooses a password: the first-run setup screen takes one
+# from a browser. A rule enforced on one of the two paths is not a rule.
+OBVIOUS_PASSWORDS = frozenset({
+    "12345678", "123456789", "1234567890", "password", "password1",
+    "qwertyui", "abc12345", "11111111", "00000000", "iloveyou",
+    "letmein1", "admin123", "welcome1", "passw0rd",
+})
+
+
+def check_password_quality(password: str) -> None:
+    """Raise `AuthError` with a sentence a non-technical person can act on.
+
+    Raises rather than returning a bool so that no caller can forget to look at
+    the answer, and so the wording lives in one place instead of being
+    reinvented per screen.
+    """
+    if not password or len(password) < 8:
+        raise AuthError("Password must be at least 8 characters.")
+    if password.lower() in OBVIOUS_PASSWORDS:
+        raise AuthError(
+            "That password is one of the most-guessed in existence. "
+            "Hashing cannot save a password a wordlist already contains — "
+            "pick something else. A short phrase works well."
+        )
+
+
 def hash_password(password: str) -> str:
     """Return `scrypt$n$r$p$salt$key`, all hex. Salt is per-password."""
     if not password or len(password) < 8:

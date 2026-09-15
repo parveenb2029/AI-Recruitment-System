@@ -93,8 +93,23 @@ def main(argv: list[str] | None = None) -> int:
 
     email = args.email
     if not email:
+        # No longer a failure, because there is now a second way in. Since the
+        # first account can be created in a browser, a container whose operator
+        # supplied no email should start and wait for them rather than refusing
+        # to boot — a stack that dies on a missing optional variable is exactly
+        # the kind of thing a non-technical person cannot diagnose.
+        from . import firstrun
+        if firstrun.setup_is_available(auth):
+            print("  auth     no accounts yet — open the console and it will "
+                  "offer a setup screen.")
+            if firstrun.token_is_required():
+                print("           It needs the one-time "
+                      f"{firstrun.SETUP_TOKEN_ENV} from your hosting dashboard:")
+                print("           https://YOUR-APP/setup?token=<that value>")
+            return 0
         print("  FAILED   no accounts exist and no administrator email was given.\n"
-              "           Pass --email you@example.com, or set RECRUIT_ADMIN_EMAIL.",
+              f"           {firstrun.why_unavailable(auth)}\n"
+              "           Or pass --email you@example.com / set RECRUIT_ADMIN_EMAIL.",
               file=sys.stderr)
         return 1
 
