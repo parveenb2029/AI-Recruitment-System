@@ -1,0 +1,235 @@
+{
+  "candidate_id": "CAN-88422",
+  "confidence_aggregate": 0.57,
+  "evidence": [
+    {
+      "char_end": 12,
+      "char_start": 0,
+      "field": "personal_info.full_name",
+      "match_score": 1.0,
+      "pointer": "/profile/personal_info/full_name",
+      "snippet": "RAHUL SHARMA",
+      "source_location": "page 1"
+    },
+    {
+      "char_end": 89,
+      "char_start": 35,
+      "field": "personal_info.email",
+      "match_score": 1.0,
+      "pointer": "/profile/personal_info/email",
+      "snippet": "Email: rahul.sharma@email.com | Phone: +91-98765-43210",
+      "source_location": "page 1"
+    },
+    {
+      "char_end": 89,
+      "char_start": 35,
+      "field": "personal_info.phone",
+      "match_score": 1.0,
+      "pointer": "/profile/personal_info/phone",
+      "snippet": "Email: rahul.sharma@email.com | Phone: +91-98765-43210",
+      "source_location": "page 1"
+    },
+    {
+      "char_end": 351,
+      "char_start": 327,
+      "field": "experience[0].title",
+      "match_score": 1.0,
+      "pointer": "/profile/experience/0/title",
+      "snippet": "Senior Software Engineer",
+      "source_location": "page 1"
+    },
+    {
+      "char_end": 369,
+      "char_start": 354,
+      "field": "experience[0].company",
+      "match_score": 1.0,
+      "pointer": "/profile/experience/0/company",
+      "snippet": "Infosys Limited",
+      "source_location": "page 1"
+    },
+    {
+      "char_end": 512,
+      "char_start": 459,
+      "field": "skills.kubernetes",
+      "match_score": 1.0,
+      "pointer": "/profile/skills/4",
+      "snippet": "Deployed services on Azure AKS with Docker/Kubernetes",
+      "source_location": "page 1"
+    }
+  ],
+  "flags": [
+    "VALUE_NOT_IN_EVIDENCE"
+  ],
+  "human_review_required": true,
+  "model_id": "fake-model-v0",
+  "processed_at": "2026-09-15T13:06:18Z",
+  "prompt_version": "1.0.0",
+  "requisition_id": "REQ-2026-0142",
+  "results": {
+    "conflicts": [],
+    "excluded_signals": [
+      "photograph",
+      "date_of_birth",
+      "marital_status",
+      "gender"
+    ],
+    "extraction_metadata": {
+      "content_sha256": "2b675f9204b7ae02b68b5af619d2c477653c30fe1595e4c8ea4ae9dabbe45cc8",
+      "locale_detected": "en-IN",
+      "ocr_used": false,
+      "pages_processed": 1,
+      "source_char_count": 945,
+      "truncated": false
+    },
+    "field_confidence": [
+      {
+        "confidence": 0.95,
+        "pointer": "/education/0/institution"
+      },
+      {
+        "confidence": 0.97,
+        "pointer": "/experience/0/company"
+      },
+      {
+        "confidence": 0.91,
+        "pointer": "/experience/0/start_date"
+      },
+      {
+        "confidence": 0.96,
+        "pointer": "/experience/0/title"
+      },
+      {
+        "confidence": 0.95,
+        "pointer": "/experience/1/company"
+      },
+      {
+        "confidence": 0.57,
+        "pointer": "/experience/1/end_date"
+      },
+      {
+        "confidence": 0.98,
+        "pointer": "/personal_info/email"
+      },
+      {
+        "confidence": 0.99,
+        "pointer": "/personal_info/full_name"
+      },
+      {
+        "confidence": 0.96,
+        "pointer": "/personal_info/location"
+      },
+      {
+        "confidence": 0.94,
+        "pointer": "/personal_info/phone"
+      },
+      {
+        "confidence": 0.92,
+        "pointer": "/skills"
+      }
+    ],
+    "low_confidence_fields": [
+      "/experience/1/end_date"
+    ],
+    "profile": {
+      "candidate_id": "CAN-88421",
+      "certifications": [
+        "AZ-900: Azure Fundamentals",
+        "CKA: Certified Kubernetes Administrator"
+      ],
+      "education": [
+        {
+          "degree": "B.Tech",
+          "field_of_study": "Computer Science",
+          "gpa": "8.4/10",
+          "graduation_date": "2020-05-15",
+          "institution": "Visvesvaraya Technological University"
+        }
+      ],
+      "experience": [
+        {
+          "company": "Infosys Limited",
+          "description": "Designed REST microservices in Python serving 2M daily requests. Deployed services on Azure AKS with Docker/Kubernetes. Reduced API latency 35% via query optimization and Redis caching.",
+          "end_date": null,
+          "is_current": true,
+          "skills_used": [
+            "Python",
+            "REST",
+            "Docker",
+            "Kubernetes",
+            "Azure",
+            "PostgreSQL",
+            "Redis"
+          ],
+          "start_date": "2022-01-15",
+          "title": "Senior Software Engineer"
+        },
+        {
+          "company": "Tata Consultancy Services",
+          "description": "Built CI/CD pipelines using Azure DevOps. Developed SQL reporting modules for enterprise banking clients.",
+          "end_date": "2021-12-31",
+          "is_current": false,
+          "skills_used": [
+            "Python",
+            "Azure DevOps",
+            "SQL",
+            "Java"
+          ],
+          "start_date": "2020-06-01",
+          "title": "Software Engineer"
+        }
+      ],
+      "extraction_metadata": {
+        "confidence_aggregate": 0.94,
+        "extracted_at": "2026-08-03T09:18:42Z",
+        "prompt_version": "1.0.0"
+      },
+      "personal_info": {
+        "email": "rahl.sharma@email.com",
+        "full_name": "Rahul Sharma",
+        "linkedin_url": "https://linkedin.com/in/rahulsharma-dev",
+        "location": "Bangalore, India",
+        "phone": "+91-98765-43210"
+      },
+      "skills": [
+        "Python",
+        "Java",
+        "REST APIs",
+        "Docker",
+        "Kubernetes",
+        "Azure",
+        "PostgreSQL",
+        "Git",
+        "CI/CD",
+        "Microservices"
+      ],
+      "summary": "Software engineer with 4.5 years of experience building backend services and cloud-native applications on Azure. Strong Python and Kubernetes skills with proven track record of performance optimization."
+    }
+  },
+  "review_reasons": [
+    "LOW_CONFIDENCE_AGGREGATE",
+    "LOW_CONFIDENCE_FIELDS"
+  ],
+  "source_text": "Rahul Sharma \u2014 Resume\nRAHUL SHARMA\nEmail: rahul.sharma@email.com | Phone: +91-98765-43210\nLocation: Bangalore, India | LinkedIn: linkedin.com/in/rahulsharma-dev\nPROFESSIONAL SUMMARY\nSoftware engineer with 4.5 years building backend services and cloud-native applications. Expertise in\nPython, Kubernetes, and Azure.\nEXPERIENCE\nSenior Software Engineer | Infosys Limited | Jan 2022 \u2013 Present\n\u007f Designed REST microservices in Python serving 2M daily requests\n\u007f Deployed services on Azure AKS with Docker/Kubernetes\n\u007f Reduced API latency 35% via query optimization and Redis caching\nSoftware Engineer | TCS | Jun 2020 \u2013 Dec 2021\n\u007f Built CI/CD pipelines using Azure DevOps\n\u007f Developed SQL reporting modules for banking clients\nEDUCATION\nB.Tech Computer Science, VTU, 2020 \u2014 CGPA 8.4/10\nSKILLS\nPython, Java, REST APIs, Docker, Kubernetes, Azure, PostgreSQL, Git, CI/CD\nCERTIFICATIONS\nAZ-900 Azure Fundamentals | CKA Certified Kubernetes Administrator",
+  "status": "PARTIAL",
+  "validation": {
+    "counts": {
+      "ERROR": 1
+    },
+    "findings": [
+      {
+        "detail": "extracted 'rahl.sharma@email.com', but its own citation reads 'Email: rahul.sharma@email.com | Phone: +91-98765-43210'. For an address or a number, one wrong character is not a near miss.",
+        "message": "The extracted email does not appear in the text cited for it.",
+        "pointer": "/evidence/1",
+        "rule": "VR-05",
+        "severity": "ERROR"
+      }
+    ],
+    "flags": [
+      "VALUE_NOT_IN_EVIDENCE"
+    ],
+    "requires_review": true,
+    "valid": false
+  },
+  "workflow_id": "WF-03",
+  "workflow_run_id": "RUN-84050dbc3fa2"
+}

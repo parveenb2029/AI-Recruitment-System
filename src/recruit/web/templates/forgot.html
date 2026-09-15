@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Forgotten password{% endblock %}
+{% block head %}
+<style>
+main{max-width:620px}
+.card{
+  background:var(--surface);border:1px solid var(--rule);border-radius:14px;
+  padding:30px 32px;margin-top:28px;
+}
+.card h1{
+  font-family:var(--display);font-size:27px;font-weight:600;margin:0 0 10px;
+  letter-spacing:-.02em;
+}
+.card p{margin:0 0 14px;font-size:15px;color:var(--ink-2);max-width:58ch}
+.card label{display:block;font-size:13px;font-weight:600;margin:16px 0 6px;color:var(--ink-2)}
+.card input{width:100%}
+.card button[type=submit]{width:100%;padding:11px;font-size:15px;margin-top:22px}
+.note{
+  background:var(--surface-2);border-left:3px solid var(--rule);
+  padding:13px 15px;border-radius:9px;margin:0 0 20px;font-size:14px;
+  color:var(--ink-2);
+}
+.problem{
+  background:var(--accent-soft);border-left:3px solid var(--accent);
+  padding:12px 14px;border-radius:9px;margin:0 0 18px;font-size:14px;color:var(--ink);
+}
+.done{
+  background:var(--surface-2);border-left:3px solid var(--accent);
+  padding:14px 16px;border-radius:9px;margin:0 0 18px;font-size:15px;
+  color:var(--ink);font-weight:600;
+}
+.steps{margin:0;padding-left:20px;font-size:14.5px;color:var(--ink-2)}
+.steps li{margin-bottom:9px}
+.steps code{
+  font-size:13px;background:var(--surface-2);padding:2px 6px;border-radius:5px;
+  border:1px solid var(--rule);
+}
+.back{display:inline-block;margin-top:22px;font-size:14px}
+</style>
+{% endblock %}
+{% block content %}
+<div class="card">
+
+{% if done %}
+  <h1>Password changed</h1>
+  <div class="done">{{ done }}</div>
+  <a class="back" href="/login">Go to sign in</a>
+
+{% elif may_reset_here %}
+  <h1>Set a new password</h1>
+  <p>
+    You are using this from the computer it is installed on, so you can set a
+    new password here. Anyone at this keyboard could already do it from the
+    command line — this is the same thing, with fewer steps.
+  </p>
+
+  {% if problem %}<div class="problem">{{ problem }}</div>{% endif %}
+
+  <form method="post" action="/forgot" autocomplete="on">
+    <label for="email">Which account?</label>
+    <input id="email" name="email" type="email" required autofocus
+           value="{{ email }}" autocomplete="username" placeholder="you@example.com">
+
+    <label for="password">New password</label>
+    <div class="pw">
+      <input id="password" name="password" type="password" required
+             autocomplete="new-password" minlength="8">
+      <button type="button" class="reveal" data-for="password">Show</button>
+    </div>
+
+    <label for="confirm">Type it again</label>
+    <div class="pw">
+      <input id="confirm" name="confirm" type="password" required
+             autocomplete="new-password" minlength="8">
+      <button type="button" class="reveal" data-for="confirm">Show</button>
+    </div>
+
+    <button type="submit">Change the password</button>
+  </form>
+  <p style="margin-top:18px;font-size:13.5px;color:var(--muted)">
+    Everyone signed in as that account will be signed out. A password you had
+    to reset is one somebody else might know.
+  </p>
+  <a class="back" href="/login">Back to sign in</a>
+
+{% else %}
+  <h1>Forgotten your password?</h1>
+
+  <div class="note">
+    <strong>This system cannot send email.</strong> There is no reset link,
+    because nothing here is able to send you one. A page promising a message
+    that never arrives would waste an hour of your day before you worked out
+    it was lying, so here is the truth instead.
+  </div>
+
+  <p>There are two ways back in, depending on who you are.</p>
+
+  <h3 style="font-family:var(--display);font-size:17px;margin:22px 0 8px">
+    If someone else administers this
+  </h3>
+  <p>
+    Ask them. It takes them about ten seconds: they open <strong>Team</strong>,
+    find your name and choose <strong>Reset password</strong>. A new one appears
+    on their screen once, and they read it to you. Change it after you sign in.
+  </p>
+
+  <h3 style="font-family:var(--display);font-size:17px;margin:22px 0 8px">
+    If that person is you
+  </h3>
+  <p>
+    You need the machine this is running on. Two options:
+  </p>
+  <ol class="steps">
+    <li>
+      Open this page <strong>on that computer</strong>, at
+      <code>http://127.0.0.1:8000/forgot</code>, and it will let you set a new
+      password directly.
+    </li>
+    <li>
+      Or run this where the application is installed:<br>
+      <code>python -m recruit.users set-password you@example.com</code>
+    </li>
+  </ol>
+  <p style="margin-top:16px;font-size:13.5px;color:var(--muted)">
+    Neither is offered over the network on purpose. A password reset that
+    anybody who can reach the address may use is not a password.
+  </p>
+
+  <a class="back" href="/login">Back to sign in</a>
+{% endif %}
+
+</div>
+{% endblock %}

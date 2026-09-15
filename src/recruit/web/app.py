@@ -53,6 +53,18 @@ def _wants_html(request: Request) -> bool:
 
 TEMPLATES = Path(__file__).resolve().parent / "templates"
 
+# Extractions the public demo replays, produced by `tools/bake_demo.py`.
+# Committed rather than generated at start-up so that what a visitor sees is
+# byte-identical to what was checked, and so the page needs no model, no key
+# and no network to render.
+DEMO_DIR = Path(__file__).resolve().parents[3] / "samples" / "demo"
+DEMO_CASES = {
+    # The label is what a non-technical visitor reads on the switch. It says
+    # what happened, not which rule fired.
+    "clean": "It read the CV",
+    "misread": "It caught its own mistake",
+}
+
 # Reason codes a reviewer can pick when rejecting. Free text is not offered:
 # rejections need to be aggregable, or the quality loop in Phase 4 has nothing
 # to learn from.
@@ -137,6 +149,26 @@ def create_app(
                 raise Forbidden(str(denied)) from denied
             return principal
         return dependency
+
+    # "Review Console" was the author naming a piece of software, in the one
+    # place every user looks. A recruiter does not think of their morning as
+    # operating a console; they think of it as hiring. So the bar carries the
+    # organization's own name where one is configured, and a plain English word
+    # where it is not — never an internal component name.
+    def console_name() -> str:
+        if config is not None:
+            chosen = config.get("console.name")
+            if chosen:
+                return str(chosen)
+            org = config.get("organization.display_name")
+            if org:
+                return f"{org} Hiring"
+        return "Hiring"
+
+    # A global rather than a value each route passes: a name that depends on
+    # every route remembering it is a name that will be missing from the next
+    # screen somebody adds.
+    templates.env.globals["console_name"] = console_name()
 
     def highlight_threshold() -> float:
         if config is not None:
@@ -365,6 +397,85 @@ def create_app(
             )
         return response
 
+    # -- forgotten passwords ------------------------------------------------
+    # The usual answer is "we will email you a link". **This system cannot send
+    # email.** Phase 6 is about receiving applications, not sending anything,
+    # and there is no SMTP configuration to borrow. Pretending otherwise would
+    # produce the worst screen in the product: one that says "check your inbox"
+    # when nothing was ever sent.
+    #
+    # So there are two real answers, and which one a person gets depends on
+    # something they can verify about themselves rather than on a secret.
+    #
+    # **At the machine it is running on**, a reset is offered directly. That is
+    # not a weakening: somebody sitting at this computer can already open the
+    # database file and run `recruit-users set-password`. Offering the same
+    # thing through the browser grants no power that was not already theirs,
+    # and withholding it only punishes the person who installed it.
+    #
+    # **From anywhere else**, no self-service reset exists, and the page says
+    # plainly who can help. `is_from_this_machine` is deliberately narrower
+    # than `is_public()`: a console started with `--host 0.0.0.0` on a laptop
+    # is not "public" by any environment marker and is reachable by every
+    # machine on the office network.
+    def _may_reset_here(request: Request) -> bool:
+        if hosting.is_public():
+            return False
+        return hosting.is_from_this_machine(
+            request.client.host if request.client else None
+        )
+
+    def _forgot_page(request: Request, *, problem: str | None = None,
+                     done: str | None = None, email: str = "",
+                     status_code: int = 200):
+        return templates.TemplateResponse(
+            request, "forgot.html",
+            {
+                "may_reset_here": _may_reset_here(request),
+                "problem": problem, "done": done, "email": email,
+                "has_accounts": callable(getattr(auth, "accounts", None)),
+            },
+            status_code=status_code,
+        )
+
+    @app.get("/forgot", response_class=HTMLResponse)
+    def forgot_form(request: Request):
+        return _forgot_page(request)
+
+    @app.post("/forgot", response_class=HTMLResponse)
+    def forgot_submit(request: Request,
+                      email: str = Form(...),
+                      password: str = Form(...),
+                      confirm: str = Form(default=""),
+                      session: Session = Depends(get_session)):
+        # Re-checked here, not trusted from the rendered form. The form is a
+        # convenience; the route is the boundary.
+        if not _may_reset_here(request):
+            raise HTTPException(status_code=404, detail="Not found")
+
+        if confirm and password != confirm:
+            return _forgot_page(request, email=email, status_code=400,
+                                problem="Those two passwords are not the same.")
+        try:
+            check_password_quality(password)
+            # `set_password` revokes live sessions by default, which is right
+            # here: a forgotten password is a password that might be known to
+            # somebody else.
+            auth.set_password(email, password)
+        except AuthError as denied:
+            return _forgot_page(request, email=email, status_code=400,
+                                problem=str(denied))
+
+        Repository(session).append_audit(
+            event="auth.password_reset_locally", actor=email.strip().lower(),
+            actor_role=None,
+            detail={"account": email.strip().lower(), "via": "browser at the machine"},
+        )
+        return _forgot_page(
+            request,
+            done=f"Done. Sign in as {email.strip().lower()} with the new password.",
+        )
+
     # -- login -------------------------------------------------------------
     @app.get("/login", response_class=HTMLResponse)
     def login_form(request: Request, error: str | None = None,
@@ -519,6 +630,60 @@ def create_app(
                               status_code=400)
         return _team_page(request, principal)
 
+    # -- the public demo ----------------------------------------------------
+    # The one page a stranger can reach without an account. Everything else in
+    # this console assumes you already know what a review queue is; this
+    # assumes nothing, and exists to produce one moment of comprehension —
+    # click a detail, watch the line of the resume it came from light up.
+    #
+    # Three properties it must keep, each of which is a decision:
+    #
+    # 1. **It calls no model.** It replays extractions baked by
+    #    `tools/bake_demo.py`. A live call here would be slow, would need a key
+    #    or a running Ollama, and could produce a different, worse answer than
+    #    the one that was checked — on the single screen an employer looks at.
+    # 2. **It touches no database.** So it works on an instance with an empty
+    #    one, and a visitor cannot change what the next visitor sees. There is
+    #    no upload route anywhere in this console, so nobody can put a real
+    #    person's CV into it either.
+    # 3. **It says it is a recording.** A demo implying live inference when
+    #    there is none is exactly the kind of dishonesty this project spends
+    #    its README refusing to commit.
+    @app.get("/demo", response_class=HTMLResponse)
+    def demo(request: Request, case: str = "clean"):
+        if case not in DEMO_CASES:
+            case = "clean"
+        path = DEMO_DIR / f"{case}.json"
+        if not path.is_file():
+            raise HTTPException(
+                status_code=404,
+                detail="The demo has not been baked. Run: python tools/bake_demo.py",
+            )
+        envelope = json.loads(path.read_text(encoding="utf-8"))
+        results = envelope.get("results") or {}
+        evidence = envelope.get("evidence") or []
+
+        return templates.TemplateResponse(
+            request, "demo.html",
+            {
+                "case": case,
+                "cases": DEMO_CASES,
+                "envelope": envelope,
+                "fields": _demo_fields(
+                    _flatten_profile(results.get("profile") or {},
+                                     confidence.read(results), evidence)),
+                "segments": _segment_source(envelope.get("source_text") or "", evidence),
+                "validation": envelope.get("validation") or {},
+                "threshold": highlight_threshold(),
+                "signed_in": current_principal_or_none(request),
+            },
+        )
+
+    def current_principal_or_none(request: Request) -> bool:
+        """Is somebody signed in? Only used to decide which link to offer."""
+        token = request.cookies.get(SESSION_COOKIE) or ""
+        return auth.principal_for_token(token) is not None
+
     @app.get("/health")
     def health():
         return {"status": "ok"}
@@ -553,6 +718,50 @@ def create_app(
 
 
 # -- helpers ------------------------------------------------------------------
+# The demo claims "here is what it pulled out of the CV". Two kinds of row make
+# that claim false and both were on the page until a screenshot showed them.
+#
+# `candidate_id` is a reference this system generates; it appears in no resume
+# ever written. `extraction_metadata` is bookkeeping about the run. Showing
+# either beside genuinely extracted details invites a visitor to believe the
+# document contained them. The review console is right to show them — a
+# reviewer needs the identifiers — but the review console is not making this
+# page's claim.
+DEMO_HIDDEN_PREFIXES = ("/candidate_id", "/requisition_id", "/extraction_metadata")
+
+# A profile arrives with its keys in whatever order it was stored in, which for
+# the baked files is alphabetical — so "certifications" and "gpa" came first
+# and the candidate's NAME was scrolled off the top. Display order is a
+# presentation decision, so it is made here rather than by reordering the
+# evidence.
+# More specific prefixes first — the first match wins. Within personal_info the
+# stored order is alphabetical, which put Email above Name; a person reading a
+# CV summary expects the name first.
+DEMO_FIELD_ORDER = (
+    "/personal_info/full_name",
+    "/personal_info/email",
+    "/personal_info/phone",
+    "/personal_info/location",
+    "/personal_info",
+    "/summary", "/experience", "/education", "/skills", "/certifications",
+)
+
+
+def _demo_fields(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Order for a human reading top to bottom, and drop what we supplied."""
+    kept = [r for r in rows
+            if not r["pointer"].startswith(DEMO_HIDDEN_PREFIXES)]
+
+    def rank(row: dict[str, Any]) -> int:
+        for index, prefix in enumerate(DEMO_FIELD_ORDER):
+            if row["pointer"].startswith(prefix):
+                return index
+        return len(DEMO_FIELD_ORDER)
+
+    # Stable, so the order inside each section is left exactly as extracted.
+    return sorted(kept, key=rank)
+
+
 def _segment_source(source_text: str, evidence: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Split the source into plain and highlighted segments.
 

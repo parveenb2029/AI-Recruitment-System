@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+{% block title %}See it work{% endblock %}
+{% block head %}
+<style>
+/* The only page here written for somebody who has never heard of this project.
+   Everything else assumes you know what a review queue is. This assumes
+   nothing and has one job: click a detail, watch the line of the CV it came
+   from light up. Anything that does not serve that is not on this page. */
+main{max-width:1180px}
+
+.lede{margin:0 0 26px;max-width:62ch}
+.lede h1{
+  font-family:var(--display);font-size:33px;line-height:1.16;font-weight:600;
+  margin:0 0 12px;letter-spacing:-.025em;
+}
+.lede p{margin:0 0 10px;font-size:16px;color:var(--ink-2)}
+.lede .try{font-weight:600;color:var(--ink)}
+
+/* The switch between the two recorded runs. Labelled by what happened, not by
+   which rule fired — "It caught its own mistake" means something to everyone;
+   "VR-05" means something to nobody outside this repository. */
+.switch{display:flex;gap:8px;margin:0 0 20px;flex-wrap:wrap}
+.switch a{
+  text-decoration:none;padding:9px 16px;border-radius:999px;font-size:14px;
+  font-weight:600;border:1px solid var(--rule);color:var(--ink-2);
+  background:var(--surface);
+}
+.switch a.on{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+
+.verdict{
+  display:flex;gap:13px;align-items:flex-start;padding:15px 17px;
+  border-radius:11px;margin:0 0 22px;border:1px solid var(--rule);
+  background:var(--surface-2);
+}
+.verdict.bad{background:var(--accent-soft);border-color:var(--accent)}
+.verdict .mk{
+  flex:none;width:26px;height:26px;border-radius:8px;display:grid;
+  place-items:center;font-weight:700;font-size:14px;
+  background:var(--accent);color:var(--on-accent);
+}
+.verdict h2{margin:0 0 4px;font-size:16px;font-weight:700;font-family:var(--display)}
+.verdict p{margin:0;font-size:14.5px;color:var(--ink-2);max-width:78ch}
+
+.panes{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+.pane{border:1px solid var(--rule);border-radius:13px;background:var(--surface);overflow:hidden}
+.pane > h3{
+  margin:0;padding:12px 16px;font-size:13px;font-weight:700;letter-spacing:.02em;
+  border-bottom:1px solid var(--rule);background:var(--surface-2);
+  font-family:var(--display);
+}
+.pane > h3 span{font-weight:400;color:var(--muted);letter-spacing:0}
+
+.source{
+  margin:0;padding:16px;white-space:pre-wrap;word-break:break-word;
+  font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;
+  line-height:1.65;max-height:62vh;overflow-y:auto;color:var(--ink-2);
+}
+.source mark{background:transparent;color:inherit;border-radius:3px;padding:1px 0}
+.source mark.on{background:var(--accent-soft);color:var(--ink);box-shadow:0 0 0 3px var(--accent-soft)}
+
+.fields{max-height:62vh;overflow-y:auto;padding:6px}
+.f{
+  display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:baseline;
+  padding:9px 12px;border-radius:9px;
+}
+.f .k{font-size:12px;color:var(--muted);grid-column:1/-1}
+.f .v{font-size:14.5px;color:var(--ink);word-break:break-word}
+.f.linked{cursor:pointer}
+.f.linked:hover{background:var(--surface-2)}
+.f.on{background:var(--accent-soft)}
+.f .c{font-size:11.5px;color:var(--muted);white-space:nowrap}
+.f.low .v{text-decoration:underline wavy var(--accent) 1.5px;text-underline-offset:4px}
+.f.low .c{color:var(--accent-ink);font-weight:700}
+.f.wrong .v{background:var(--accent-soft);border-radius:4px;padding:1px 5px}
+
+.hint{
+  margin:10px 0 0;font-size:12.5px;color:var(--muted);
+  padding:0 4px;
+}
+
+.finding{
+  margin:20px 0 0;padding:15px 17px;border-radius:11px;
+  border:1px solid var(--accent);background:var(--accent-soft);
+}
+.finding h3{margin:0 0 6px;font-size:15px;font-family:var(--display)}
+.finding p{margin:0 0 6px;font-size:14.5px;color:var(--ink-2);max-width:80ch}
+.finding code{font-size:13px}
+
+.foot{
+  margin:34px 0 0;padding:20px 0 0;border-top:1px solid var(--rule);
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:20px;
+}
+.foot h4{margin:0 0 6px;font-size:14px;font-family:var(--display)}
+.foot p{margin:0;font-size:13.5px;color:var(--ink-2)}
+.foot a{color:var(--accent-ink)}
+
+.recorded{
+  margin:24px 0 0;font-size:13px;color:var(--muted);
+  border-left:3px solid var(--rule);padding-left:13px;max-width:78ch;
+}
+
+@media (max-width:900px){
+  .panes{grid-template-columns:1fr}
+  .source{max-height:40vh}
+  .fields{max-height:none}
+}
+</style>
+{% endblock %}
+{% block content %}
+
+<div class="lede">
+  <h1>A computer read this CV. Here is where it got every detail.</h1>
+  <p>
+    On the right is a real resume, exactly as the system received it. On the
+    left is what it pulled out.
+  </p>
+  <p class="try">Click any detail on the left — the line it came from lights up on the right.</p>
+</div>
+
+<div class="switch">
+  {% for key, label in cases.items() %}
+  <a href="/demo?case={{ key }}" class="{% if key == case %}on{% endif %}">{{ label }}</a>
+  {% endfor %}
+</div>
+
+{% if case == 'clean' %}
+<div class="verdict">
+  <span class="mk">&check;</span>
+  <div>
+    <h2>Every detail traced back to the document — and a person still has to look</h2>
+    <p>
+      Nothing here was invented: each detail is quoted from the CV, and you can
+      check any of them yourself in one click. Further down the list one field
+      came back at 57% — the system was unsure when an old job ended — so it
+      refused to call this finished and sent the whole thing to a human. It
+      does not pretend to be certain.
+    </p>
+  </div>
+</div>
+{% else %}
+<div class="verdict bad">
+  <span class="mk">!</span>
+  <div>
+    <h2>It misread the email address — and then caught itself</h2>
+    <p>
+      Look at the email on the left, then at the line it quoted on the right.
+      They are not the same: a character is missing. Nobody would have caught
+      that by eye, and the candidate would simply never have heard back.
+    </p>
+    <p style="margin-top:8px">
+      Now look at the number beside it: <strong>98% sure</strong>. It was
+      confident and wrong at the same time, which is exactly why this system
+      never takes a machine's word for anything. What stopped it was not
+      confidence — it was checking the detail against the very text the machine
+      offered as proof of it.
+    </p>
+  </div>
+</div>
+{% endif %}
+
+<div class="panes">
+  <div class="pane">
+    <h3>What it pulled out <span>— click a line</span></h3>
+    <div class="fields">
+      {% for f in fields %}
+      {# The opening highlight: the email on the page that is about the email,
+         the name on the page that is about reading the document at all. #}
+      <div class="f {% if f.evidence_index is not none %}linked{% endif %}
+                  {% if f.confidence is not none and f.confidence < threshold %}low{% endif %}
+                  {% if case == 'misread' and f.pointer == '/personal_info/email' %}wrong opening{% endif %}
+                  {% if case == 'clean' and f.pointer == '/personal_info/full_name' %}opening{% endif %}"
+           {% if f.evidence_index is not none %}data-index="{{ f.evidence_index }}"{% endif %}>
+        <span class="k">{{ f.label }}</span>
+        <span class="v">{{ f.value }}</span>
+        {% if f.confidence is not none %}
+        <span class="c">{{ (f.confidence * 100)|round|int }}% sure</span>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    <p class="hint">
+      A wavy underline means the system was not confident. Those always go to a person.
+    </p>
+  </div>
+
+  <div class="pane">
+    <h3>The CV it read <span>— highlighted where it looked</span></h3>
+    <pre class="source" id="source">{% for s in segments %}{% if s.index is not none %}<mark id="ev-{{ s.index }}" data-index="{{ s.index }}">{{ s.text }}</mark>{% else %}{{ s.text }}{% endif %}{% endfor %}</pre>
+  </div>
+</div>
+
+{% if validation.findings %}
+{% for finding in validation.findings %}
+<div class="finding">
+  <h3>What stopped it</h3>
+  <p>{{ finding.message }}</p>
+  {% if finding.detail %}<p>{{ finding.detail }}</p>{% endif %}
+  <p class="techonly">
+    <code>{{ finding.rule }}</code> &middot; {{ finding.severity }}
+    {% if finding.pointer %}&middot; <code>{{ finding.pointer }}</code>{% endif %}
+  </p>
+</div>
+{% endfor %}
+{% endif %}
+
+<p class="recorded">
+  <strong>These are recordings, not live runs.</strong> Both extractions were
+  produced by running the real pipeline over that resume, then saved, so this
+  page loads instantly and shows the same thing every time. The misread address
+  is not staged for effect — a small model running on a laptop genuinely
+  produced it, and the check that catches it here is the same code that runs on
+  a real document.
+</p>
+
+<div class="foot">
+  <div>
+    <h4>Why it works this way</h4>
+    <p>
+      A computer reading a CV will sometimes invent a job, and will more often
+      misread a real one. So it is never allowed to simply assert something —
+      it has to quote the document, and what it quotes is checked against what
+      it wrote down.
+    </p>
+  </div>
+  <div>
+    <h4>Who decides</h4>
+    <p>
+      A person does, every time. The system ranks, explains and flags. It never
+      rejects anybody on its own, and every decision is written to a log that
+      nobody can edit afterwards.
+    </p>
+  </div>
+  <div>
+    <h4>Run it yourself</h4>
+    <p>
+      It is free and open source. Your copy, your server, your data —
+      <a href="https://github.com/parveenb2029/AI-Recruitment-System">see the repository</a>.
+      {% if signed_in %}Or <a href="/">go to your review queue</a>.{% endif %}
+    </p>
+  </div>
+</div>
+
+<script>
+// Same two-way link as the review screen. Offsets come from the server;
+// searching for the text in the browser would highlight the wrong occurrence
+// whenever a phrase repeats in a CV, which it routinely does.
+(function () {
+  // `scroll` is false on the opening highlight. Scrolling the source pane on
+  // load also dragged the field list past the candidate's name and email —
+  // which on the misread page hid the exact row the text tells you to look at.
+  function focus(index, scroll) {
+    document.querySelectorAll('mark.on, .f.on').forEach(function (el) {
+      el.classList.remove('on');
+    });
+    var mark = document.getElementById('ev-' + index);
+    var row = document.querySelector('.f[data-index="' + index + '"]');
+    if (mark) {
+      mark.classList.add('on');
+      if (scroll) { mark.scrollIntoView({block: 'center', behavior: 'smooth'}); }
+    }
+    if (row) { row.classList.add('on'); }
+  }
+
+  document.querySelectorAll('.f.linked').forEach(function (row) {
+    row.addEventListener('click', function () { focus(row.dataset.index, true); });
+  });
+  document.querySelectorAll('mark[data-index]').forEach(function (mark) {
+    mark.addEventListener('click', function () { focus(mark.dataset.index, true); });
+  });
+
+  // Open with one pair already linked, so the mechanism is visible before
+  // anybody clicks anything — a page that only reveals its point on
+  // interaction loses every visitor who did not interact. The opening pair is
+  // the row the surrounding text is talking about, not whichever happens to
+  // be first in the list.
+  var opener = document.querySelector('.f.opening') || document.querySelector('.f.linked');
+  if (opener) { focus(opener.dataset.index, false); }
+})();
+</script>
+{% endblock %}

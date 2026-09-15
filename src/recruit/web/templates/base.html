@@ -16,7 +16,14 @@
   } catch (e) {}
 })();
 </script>
-<title>{% block title %}Review Console{% endblock %}</title>
+<title>{% block title %}{{ console_name }}{% endblock %}</title>
+{#
+  Inline rather than a file: a container with no /favicon.ico logs a 404 on
+  every first page load, which is noise in the one place an operator looks
+  when something is actually wrong. A data URI also needs no network, which
+  matters for a copy running offline on somebody's laptop.
+#}
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23a8481c'/%3E%3Cpath d='M9 22V10h6.2c2.6 0 4.3 1.5 4.3 3.9 0 1.8-1 3.1-2.6 3.6L20.8 22h-3.2l-2.6-4.2h-2.7V22H9zm3.3-6.6h2.5c1.1 0 1.8-.6 1.8-1.5s-.7-1.5-1.8-1.5h-2.5v3z' fill='%23fdf8f3'/%3E%3C/svg%3E">
 {#
   Two webfonts, with a full system stack behind them. A self-hosted copy with
   no internet still renders correctly — it just gets the local fallback. The
@@ -109,6 +116,25 @@ header.bar .where{
   font-size:13.5px;color:var(--muted);padding-left:16px;
   border-left:1px solid var(--rule);white-space:nowrap;
 }
+
+/* -- show/hide a password ------------------------------------------------- */
+/* Typing a password you cannot see, twice, is how somebody ends up locked out
+   of an account they created ninety seconds earlier. The dots exist to stop a
+   person reading over your shoulder — and whether anyone is standing there is
+   a judgement only the person at the keyboard can make, so it is theirs to
+   make. This changes what the screen shows, never what leaves it: the field is
+   posted over the same connection and stored as the same one-way hash either
+   way. */
+.pw{position:relative}
+.pw input{width:100%;padding-right:74px}
+.pw .reveal{
+  position:absolute;top:0;right:0;height:100%;padding:0 13px;
+  border:none;background:none;cursor:pointer;
+  font-family:var(--sans);font-size:12.5px;font-weight:600;
+  color:var(--muted);
+}
+.pw .reveal:hover{color:var(--accent-ink)}
+.pw .reveal:focus-visible{outline:2px solid var(--accent);outline-offset:-3px;border-radius:8px}
 header.bar .who{
   margin-left:auto;display:flex;align-items:center;gap:6px;
   font-size:13.5px;color:var(--muted);
@@ -234,7 +260,7 @@ kbd{
 </head>
 <body>
 <header class="bar">
-  <a class="brand" href="/"><span class="mark">R</span>Review Console</a>
+  <a class="brand" href="/"><span class="mark">{{ console_name[0]|upper }}</span>{{ console_name }}</a>
   {% block subtitle %}{% endblock %}
   <span class="who">
     {%- if principal %}
@@ -244,12 +270,40 @@ kbd{
       <form method="post" action="/logout" style="display:inline">
         <button type="submit" class="navlink" style="border:none;background:none">Sign out</button>
       </form>
-    {%- else %}Not signed in{% endif -%}
+    {#- "Not signed in" told somebody staring at a sign-in form a thing they
+        already knew. Nothing is better than noise, and where signing in is
+        actually useful — the public demo — the page offers it itself. #}
+    {%- endif -%}
     <button class="themer" id="themer" type="button" title="Light, dark, or follow the system"
             aria-label="Change the theme">&#9681;</button>
   </span>
 </header>
 <main>{% block content %}{% endblock %}</main>
+<script>
+// Show/hide a password. One implementation in the shared layout, because
+// sign-in, first-run setup and the reset page all need it and three copies
+// would drift into three behaviours.
+//
+// The state is never remembered between page loads. A box that stayed
+// readable because of a choice somebody made last week, on a screen they are
+// now showing to a colleague, is a worse default than one extra click.
+(function () {
+  document.querySelectorAll('.reveal').forEach(function (button) {
+    var field = document.getElementById(button.dataset.for);
+    if (!field) { button.remove(); return; }
+    button.addEventListener('click', function () {
+      var hidden = field.type === 'password';
+      field.type = hidden ? 'text' : 'password';
+      button.textContent = hidden ? 'Hide' : 'Show';
+      // Keep the caret where it was; switching type moves it to the end in
+      // some browsers, which is maddening halfway through typing.
+      var at = field.value.length;
+      field.focus();
+      try { field.setSelectionRange(at, at); } catch (e) {}
+    });
+  });
+})();
+</script>
 <script>
 // "Show technical details" — shared by every screen that has identifiers to
 // hide. One implementation, because three copies would drift.

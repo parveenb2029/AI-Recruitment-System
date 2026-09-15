@@ -29,11 +29,32 @@ import os
 __all__ = [
     "OPEN_CONSOLE_ESCAPE",
     "auth_provider",
+    "is_from_this_machine",
     "is_public",
     "problems",
     "refuse_unsafe_public_start",
     "secure_cookie",
 ]
+
+LOOPBACK = frozenset({"127.0.0.1", "::1", "localhost"})
+
+
+def is_from_this_machine(client_host: str | None) -> bool:
+    """Did this request come from the computer the app is running on?
+
+    A narrower question than `is_public()`, and the two are not
+    interchangeable. `is_public()` asks what kind of deployment this is;
+    this asks who is knocking.
+
+    It matters for anything where "you are physically at the machine" is the
+    authorisation. Somebody at the keyboard can already read the database file
+    and run the command-line tools, so offering them the same power through the
+    browser grants nothing new. Somebody on the same office network cannot, and
+    `is_public()` would happily call that deployment private — a console
+    started with `--host 0.0.0.0` on a laptop is not public by any
+    environment marker, and is reachable by every machine on the LAN.
+    """
+    return (client_host or "") in LOOPBACK
 
 # Platforms set one of these for every service they run. They are read as a
 # fallback so that someone who deploys by hand — or copies the blueprint and

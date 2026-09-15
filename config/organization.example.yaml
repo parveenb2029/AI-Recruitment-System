@@ -153,6 +153,23 @@ eeo_statement: >
 # Phase 4.3 replaces these with values derived from the golden set. Until then,
 # treat auto-publish as unproven and keep review rates high.
 # -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+# What the screens call themselves
+#
+# The name in the top bar, on every page, and in the browser tab. Leave it
+# unset and it becomes "<your display_name> Hiring" — or just "Hiring" if no
+# organization is configured.
+#
+# It used to read "Review Console", which is what the people who built it call
+# the software. Nobody using it thinks of their morning as operating a console;
+# they think of it as hiring. Set this to whatever your team already calls this
+# part of their work.
+# -----------------------------------------------------------------------------
+console:
+  name: ""
+
+# -----------------------------------------------------------------------------
 confidence:
   auto_publish_min: 0.85
   mandatory_review_min: 0.70

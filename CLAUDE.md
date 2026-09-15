@@ -230,7 +230,8 @@ artifact. Summary:
 | 6.2b–6.12 | Gmail connection, per-source parsers, landing zone, safety gate, screening | not started — `docs/intake_playbook.md` |
 | 7.0–7.10 | Workspaces, sign-up, demo mode | **planned** — `docs/phase7_playbook.md`, eleven prompts |
 | 8.0 | Browser first-run setup (no log reading) | **done and verified** — run natively, both local and public-with-token |
-| 8.1–8.x | Windows installer, model included | not started — research done, see decision log |
+| 8.1 | Public demo page (`/demo`) | **done and verified** — screenshots in `docs/screenshots/` |
+| 8.2–8.x | Windows installer, model included | not started — research done, see decision log |
 
 ---
 
@@ -1158,3 +1159,126 @@ Append here. Newest last.
   machine that built the Docker image when nothing local could, and the same
   reason it satisfies hard rule 6: a runner has none of the dependencies
   installed.
+
+- **2026-09-15** — Phase 8.1. The demo page, and the question that produced it.
+  The operator asked something better than "where do I host it": *"how will a
+  visitor get a feel that wow this might come in handy for me — and this
+  visitor is gonna be a total layman."*
+  **The answer was that the comprehension moment already existed and was four
+  clicks behind a login.** Click an extracted detail, watch the exact line of
+  the CV light up. A non-technical person needs no explanation for that: they
+  see the machine point at where it got something, and understand in one
+  gesture both that it read the document and that it cannot simply invent
+  things. Reaching it required finding the URL, signing in, knowing what a
+  review queue is, picking a candidate, and thinking to click a field. Nobody
+  does that. So the fix was not a better deployment — it was putting the moment
+  on the first screen.
+  **`/demo` is public, replays recordings, and touches no database.** Three
+  decisions, each load-bearing. It calls no model, because a live call on the
+  one screen an employer looks at is slow, needs a key or a running Ollama, and
+  could produce a *different, worse* answer than the one that was checked. It
+  reads no database, so it works on a freshly deployed copy whose database is
+  empty — which is precisely when it has to work — and no visitor can change
+  what the next visitor sees. And it says in plain words that it is a
+  recording, because a demo implying live inference when there is none is a
+  small lie of exactly the kind this README spends its length refusing to tell.
+  Worth noting what makes a public page safe here at all: **there is no upload
+  route anywhere in this console.** Resumes enter through the command line.
+  That is not a control added for the demo; it is the absence of a route, which
+  is the strongest kind. A stranger cannot put a real person's CV on the
+  operator's instance because there is nowhere to put it.
+  **The second recording is the product.** One panel shows a clean read. The
+  other reproduces the September defect: `rahl.sharma@email.com`, one character
+  short, with the model's citation still quoting the correct line — the honest
+  quote attached to the wrong value, which is what VR-05 exists for. Nothing is
+  simulated; `tools/bake_demo.py` runs the real validator and **refuses to bake
+  at all if VR-05 stops firing**, because the alternative is a page that
+  silently starts showing a wrong answer with a green tick, which is the exact
+  failure it exists to dramatise.
+  The best line on the page was found by looking at it rather than by writing
+  it: beside the wrong address the console reports **98% sure**. Confident and
+  wrong simultaneously, on screen, which makes the argument for checking
+  against evidence better than any paragraph could. `confidence.calibrated` is
+  still false and this is what that means in practice.
+  **Three defects a screenshot caught and no test would have.** (1) The profile
+  is stored alphabetically, so the candidate's *name* sorted below
+  `certifications` and `gpa` and was scrolled off the top — on a page whose
+  headline is about reading a CV. Display order is now an explicit decision in
+  the route rather than an accident of `json.dumps(sort_keys=True)`. (2) The
+  opening highlight called `scrollIntoView`, which dragged the field list past
+  the email on the page whose entire text says *look at the email*. It no
+  longer scrolls on load, only on a click. (3) The page rendered
+  `candidate_id` — a reference this system generates, present in no resume ever
+  written — among details genuinely quoted from the document. The review
+  console is right to show it; this page makes a different claim, so
+  `SYSTEM_SUPPLIED_FIELDS` are dropped here. That is the fifth time in this
+  project a browser screenshot has found something the suite could not.
+  Also fixed in passing: `gpa` title-cased to "Gpa", which reads as a typo and
+  quietly undermines every correct label beside it.
+  `tests/test_demo.py` mostly checks the **claims** rather than the rendering,
+  because this is the one page that makes assertions in prose to people who
+  cannot verify them — that the misread is still caught, that the citation
+  still quotes the correct address, that the page still says a person decides,
+  and that `samples/` is not excluded from the Docker image. That last one is
+  the `.dockerignore` shape again: an image that builds, starts, serves every
+  other page, and 404s on the one page everybody was linked to.
+  333 tests pass; ruff clean; branding gate green. Verified in a real browser,
+  both panels, signed out.
+
+- **2026-09-15** — Phase 8.2. Three things the operator caught by using it.
+  **(1) "Review Console" was breaking the fourth wall.** That is what the
+  people who build the software call it; nobody using it thinks of their
+  morning as operating a console. The bar now carries the organization's own
+  name where one is configured — `console.name`, falling back to
+  "<display_name> Hiring", then plain "Hiring" — and the letter in the mark is
+  derived from it rather than a hardcoded "R". A template global, not a value
+  each route passes, because a name that depends on every route remembering it
+  is a name that will be missing from the next screen somebody adds.
+  Also removed: **"Not signed in"**, which told a person staring at a sign-in
+  form something they already knew. Nothing beats noise.
+  **(2) A password you cannot see, typed twice, is how people lock themselves
+  out** of an account they made ninety seconds earlier. Every password field
+  now has a Show/Hide button — one implementation in `base.html`, because
+  sign-in, first-run setup and reset all need it and three copies would drift.
+  The state is deliberately **not** remembered between page loads: a box left
+  readable by a choice made last week, on a screen now being shown to a
+  colleague, is a worse default than one extra click. Worth stating plainly in
+  the comment, since "show my password" sounds like a weakening and is not: it
+  changes what the screen displays, never what is transmitted or stored.
+  **(3) Forgotten passwords, with nothing able to send email.** Every product
+  answers this with a link in an inbox. This one **cannot send email at all** —
+  Phase 6 receives applications, it does not send, and there is no SMTP
+  configuration to borrow. A page promising a message that never arrives is the
+  worst screen a product can have, so `/forgot` says so and offers the two real
+  routes instead.
+  **The new distinction: `hosting.is_from_this_machine(client_host)`, which is
+  narrower than `is_public()` and not a substitute for it.** `is_public()` asks
+  what kind of deployment this is; this asks who is knocking. At the keyboard,
+  a self-service reset is offered, because that person can already open the
+  database file and run `recruit-users set-password` — a browser form grants
+  them nothing new, and withholding it only punishes the person who installed
+  it. From anywhere else there is no form at all. The gap that makes the
+  narrower question necessary: **a console started with `--host 0.0.0.0` on a
+  laptop sets no platform environment variable**, so `is_public()` calls it
+  private while every machine on the office network can reach it. There is a
+  test with a client on 192.168.1.44 proving the POST is refused, not just the
+  form withheld.
+  One deliberate inconsistency worth recording: the sign-in form hides whether
+  an account exists, and this form does not — it says "No user with that
+  email". Silence there protects against harvesting by strangers; here the
+  request already came from the machine, where the accounts can simply be
+  listed, so being unhelpful buys nothing and costs somebody a confusing
+  afternoon.
+  A test caught my own copy: the page explaining that nothing would arrive in
+  an inbox contained the phrase it was warning about, and the assertion
+  guarding against a future "check your inbox" fired on it. Reworded the page
+  rather than weakening the test.
+  Also: an inline SVG favicon, because a missing one logs a 404 on every first
+  page load — noise in the one place an operator looks when something is
+  actually wrong. Found in the operator's own server log.
+  348 tests pass; ruff clean; branding gate green. Verified in a browser:
+  header renamed, Show/Hide revealing a typed password, `/forgot` offering the
+  form on loopback.
+  **Still owed from this sitting:** the operator's "I want some visuals, this
+  is too drab" — the sign-in and demo screens are all type and no picture. Not
+  started; it is a design pass, not a defect.

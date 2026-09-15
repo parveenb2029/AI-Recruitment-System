@@ -390,6 +390,9 @@ FIELD_LABELS: dict[str, str] = {
     "full_name": "Name",
     "skills_used": "Skills used here",
     "cgpa": "Grade (CGPA)",
+    # Without this the title-caser produced "Gpa", which reads as a typo rather
+    # than an acronym and undermines every correct label beside it.
+    "gpa": "Grade (GPA)",
     "start_date": "Started",
     "end_date": "Ended",
     "employment_type": "Type of employment",

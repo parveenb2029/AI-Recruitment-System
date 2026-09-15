@@ -93,13 +93,19 @@ main{max-width:none;padding:0}
                autocomplete="name" placeholder="Taken from your email if left blank">
 
         <label for="password">Choose a password</label>
-        <input id="password" name="password" type="password" required
-               autocomplete="new-password" minlength="8">
+        <div class="pw">
+          <input id="password" name="password" type="password" required
+                 autocomplete="new-password" minlength="8">
+          <button type="button" class="reveal" data-for="password">Show</button>
+        </div>
         <p class="hint">At least 8 characters. A short phrase is easier to remember and harder to guess than a scrambled word.</p>
 
         <label for="confirm">Type it again</label>
-        <input id="confirm" name="confirm" type="password" required
-               autocomplete="new-password" minlength="8">
+        <div class="pw">
+          <input id="confirm" name="confirm" type="password" required
+                 autocomplete="new-password" minlength="8">
+          <button type="button" class="reveal" data-for="confirm">Show</button>
+        </div>
 
         <button type="submit">Create account and sign in</button>
       </form>

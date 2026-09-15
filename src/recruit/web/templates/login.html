@@ -74,9 +74,15 @@ main{max-width:none;padding:0}
         <label class="field" for="email">Email</label>
         <input id="email" name="email" type="email" autocomplete="username" required autofocus>
         <label class="field" for="password">Password</label>
-        <input id="password" name="password" type="password" autocomplete="current-password" required>
+        <div class="pw">
+          <input id="password" name="password" type="password" autocomplete="current-password" required>
+          <button type="button" class="reveal" data-for="password">Show</button>
+        </div>
         <button type="submit" class="primary">Sign in</button>
       </form>
+      <p style="margin-top:16px;font-size:13.5px;text-align:center">
+        <a href="/forgot">Forgotten your password?</a>
+      </p>
     </div>
   </section>
 </div>
