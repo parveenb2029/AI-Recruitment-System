@@ -1,0 +1,25 @@
+# Skills laid out in a grid. PDF extraction flattens a table into a run of
+# words, so a model can read a row as a single skill.
+id: "0004"
+name: skills-in-table
+layout: table_skills
+tests: "Skills in a table; extraction flattens rows and cells run together."
+truth:
+  personal_info:
+    full_name: "Tunde Okonkwo"
+    email: "tunde.okonkwo@example.com"
+    phone: "+2348012345678"
+    location: "Lagos, Nigeria"
+  experience:
+    - company: "Flutterwave"
+      title: "Site Reliability Engineer"
+      start_date: "2022-02-01"
+      end_date: null
+      is_current: true
+      shown_as: "Feb 2022 - Present"
+  education:
+    - institution: "University of Lagos"
+      degree: "B.Sc Computer Science"
+      end_date: "2021-07-01"
+      shown_as: "2021"
+  skills: ["Kubernetes", "Terraform", "Prometheus", "Go", "Linux", "Ansible"]

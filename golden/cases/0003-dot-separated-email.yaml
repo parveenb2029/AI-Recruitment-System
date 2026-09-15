@@ -1,0 +1,25 @@
+# The exact failure a 3B model produced on the sample resume: a character
+# dropped from a dot-separated address. Here on purpose, to measure it.
+id: "0003"
+name: dot-separated-email
+layout: single_column
+tests: "Long dot-separated local part; a dropped character is undetectable by eye."
+truth:
+  personal_info:
+    full_name: "Priyanka Venkataraman"
+    email: "priyanka.venkataraman@example.co.in"
+    phone: "+914412345678"
+    location: "Chennai, India"
+  experience:
+    - company: "Freshworks"
+      title: "Senior Product Analyst"
+      start_date: "2020-01-01"
+      end_date: null
+      is_current: true
+      shown_as: "Jan 2020 - Present"
+  education:
+    - institution: "Anna University"
+      degree: "B.Tech Information Technology"
+      end_date: "2019-06-01"
+      shown_as: "2019"
+  skills: ["SQL", "Tableau", "Python", "A/B testing"]

@@ -1,0 +1,31 @@
+# A two-year gap between roles. A gap is a fact, not a fault, and nothing in
+# the extraction should invent an explanation for it.
+id: "0006"
+name: employment-gap
+layout: single_column
+tests: "Two-year gap between roles; must be recorded, not explained away."
+truth:
+  personal_info:
+    full_name: "Sarah Whitfield"
+    email: "s.whitfield@example.co.uk"
+    phone: "+447700900123"
+    location: "Manchester, United Kingdom"
+  experience:
+    - company: "Monzo"
+      title: "Backend Engineer"
+      start_date: "2023-06-01"
+      end_date: null
+      is_current: true
+      shown_as: "June 2023 - Present"
+    - company: "Sky"
+      title: "Software Engineer"
+      start_date: "2018-09-01"
+      end_date: "2021-05-01"
+      is_current: false
+      shown_as: "September 2018 - May 2021"
+  education:
+    - institution: "University of Leeds"
+      degree: "BSc Computer Science"
+      end_date: "2018-07-01"
+      shown_as: "2018"
+  skills: ["Java", "Spring", "Kotlin", "gRPC"]
