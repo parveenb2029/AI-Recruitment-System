@@ -1,0 +1,38 @@
+{
+  "id": "0003",
+  "name": "dot-separated-email",
+  "layout": "single_column",
+  "tests": "Long dot-separated local part; a dropped character is undetectable by eye.",
+  "expect_conflict": false,
+  "must_not_extract": [],
+  "truth": {
+    "personal_info": {
+      "full_name": "Priyanka Venkataraman",
+      "email": "priyanka.venkataraman@example.co.in",
+      "phone": "+914412345678",
+      "location": "Chennai, India"
+    },
+    "experience": [
+      {
+        "company": "Freshworks",
+        "title": "Senior Product Analyst",
+        "start_date": "2020-01-01",
+        "end_date": null,
+        "is_current": true
+      }
+    ],
+    "education": [
+      {
+        "institution": "Anna University",
+        "degree": "B.Tech Information Technology",
+        "end_date": "2019-06-01"
+      }
+    ],
+    "skills": [
+      "SQL",
+      "Tableau",
+      "Python",
+      "A/B testing"
+    ]
+  }
+}

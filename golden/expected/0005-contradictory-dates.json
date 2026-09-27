@@ -1,0 +1,37 @@
+{
+  "id": "0005",
+  "name": "contradictory-dates",
+  "layout": "single_column",
+  "tests": "Start date after end date. Must be surfaced as a conflict, not resolved.",
+  "expect_conflict": true,
+  "must_not_extract": [],
+  "truth": {
+    "personal_info": {
+      "full_name": "Elena Popescu",
+      "email": "elena.popescu@example.ro",
+      "phone": "+40721234567",
+      "location": "Cluj-Napoca, Romania"
+    },
+    "experience": [
+      {
+        "company": "UiPath",
+        "title": "QA Automation Engineer",
+        "start_date": "2023-09-01",
+        "end_date": "2022-04-01",
+        "is_current": false
+      }
+    ],
+    "education": [
+      {
+        "institution": "Babes-Bolyai University",
+        "degree": "BSc Informatics",
+        "end_date": "2020-06-01"
+      }
+    ],
+    "skills": [
+      "Selenium",
+      "C#",
+      "TestRail"
+    ]
+  }
+}

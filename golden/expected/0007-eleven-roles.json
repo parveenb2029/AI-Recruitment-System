@@ -1,0 +1,107 @@
+{
+  "id": "0007",
+  "name": "eleven-roles",
+  "layout": "dense",
+  "tests": "Eleven roles - one beyond the pointer array bound of ten.",
+  "expect_conflict": false,
+  "must_not_extract": [],
+  "truth": {
+    "personal_info": {
+      "full_name": "Hiroshi Tanaka",
+      "email": "h.tanaka@example.jp",
+      "phone": "+819012345678",
+      "location": "Osaka, Japan"
+    },
+    "experience": [
+      {
+        "company": "Rakuten",
+        "title": "Principal Engineer",
+        "start_date": "2023-04-01",
+        "end_date": null,
+        "is_current": true
+      },
+      {
+        "company": "LINE",
+        "title": "Staff Engineer",
+        "start_date": "2021-04-01",
+        "end_date": "2023-03-01",
+        "is_current": false
+      },
+      {
+        "company": "Mercari",
+        "title": "Senior Engineer",
+        "start_date": "2019-04-01",
+        "end_date": "2021-03-01",
+        "is_current": false
+      },
+      {
+        "company": "Cookpad",
+        "title": "Engineer",
+        "start_date": "2017-04-01",
+        "end_date": "2019-03-01",
+        "is_current": false
+      },
+      {
+        "company": "DeNA",
+        "title": "Engineer",
+        "start_date": "2015-04-01",
+        "end_date": "2017-03-01",
+        "is_current": false
+      },
+      {
+        "company": "GREE",
+        "title": "Engineer",
+        "start_date": "2013-04-01",
+        "end_date": "2015-03-01",
+        "is_current": false
+      },
+      {
+        "company": "CyberAgent",
+        "title": "Engineer",
+        "start_date": "2011-04-01",
+        "end_date": "2013-03-01",
+        "is_current": false
+      },
+      {
+        "company": "NTT Data",
+        "title": "Engineer",
+        "start_date": "2009-04-01",
+        "end_date": "2011-03-01",
+        "is_current": false
+      },
+      {
+        "company": "Fujitsu",
+        "title": "Engineer",
+        "start_date": "2007-04-01",
+        "end_date": "2009-03-01",
+        "is_current": false
+      },
+      {
+        "company": "Hitachi",
+        "title": "Junior Engineer",
+        "start_date": "2005-04-01",
+        "end_date": "2007-03-01",
+        "is_current": false
+      },
+      {
+        "company": "Toshiba",
+        "title": "Intern",
+        "start_date": "2004-04-01",
+        "end_date": "2005-03-01",
+        "is_current": false
+      }
+    ],
+    "education": [
+      {
+        "institution": "Kyoto University",
+        "degree": "BEng Information Science",
+        "end_date": "2004-03-01"
+      }
+    ],
+    "skills": [
+      "C++",
+      "Rust",
+      "Distributed systems"
+    ]
+  }
+}

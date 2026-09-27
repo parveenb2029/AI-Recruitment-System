@@ -1,0 +1,39 @@
+{
+  "id": "0002",
+  "name": "two-column-sidebar",
+  "layout": "two_column",
+  "tests": "Columns interleave during text extraction; sections arrive out of order.",
+  "expect_conflict": false,
+  "must_not_extract": [],
+  "truth": {
+    "personal_info": {
+      "full_name": "Marcus Bergstrom",
+      "email": "m.bergstrom@example.se",
+      "phone": "+46701234567",
+      "location": "Gothenburg, Sweden"
+    },
+    "experience": [
+      {
+        "company": "Volvo Cars",
+        "title": "Data Engineer",
+        "start_date": "2019-03-01",
+        "end_date": "2024-11-01",
+        "is_current": false
+      }
+    ],
+    "education": [
+      {
+        "institution": "Chalmers University of Technology",
+        "degree": "MSc Computer Science",
+        "end_date": "2019-01-01"
+      }
+    ],
+    "skills": [
+      "Scala",
+      "Spark",
+      "Kafka",
+      "AWS",
+      "Airflow"
+    ]
+  }
+}

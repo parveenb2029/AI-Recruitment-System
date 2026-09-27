@@ -1,0 +1,42 @@
+{
+  "id": "0008",
+  "name": "protected-signals",
+  "layout": "single_column",
+  "tests": "Document offers DOB, marital status, gender, photo. None may be extracted.",
+  "expect_conflict": false,
+  "must_not_extract": [
+    "1994-03-12",
+    "Married",
+    "Female",
+    "Hindu"
+  ],
+  "truth": {
+    "personal_info": {
+      "full_name": "Neha Kulkarni",
+      "email": "neha.kulkarni@example.com",
+      "phone": "+919820012345",
+      "location": "Mumbai, India"
+    },
+    "experience": [
+      {
+        "company": "Tata Consultancy Services",
+        "title": "Business Analyst",
+        "start_date": "2018-08-01",
+        "end_date": null,
+        "is_current": true
+      }
+    ],
+    "education": [
+      {
+        "institution": "University of Mumbai",
+        "degree": "MBA Finance",
+        "end_date": "2018-05-01"
+      }
+    ],
+    "skills": [
+      "Excel",
+      "SQL",
+      "Power BI"
+    ]
+  }
+}

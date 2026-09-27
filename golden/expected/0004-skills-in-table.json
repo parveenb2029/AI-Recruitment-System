@@ -1,0 +1,40 @@
+{
+  "id": "0004",
+  "name": "skills-in-table",
+  "layout": "table_skills",
+  "tests": "Skills in a table; extraction flattens rows and cells run together.",
+  "expect_conflict": false,
+  "must_not_extract": [],
+  "truth": {
+    "personal_info": {
+      "full_name": "Tunde Okonkwo",
+      "email": "tunde.okonkwo@example.com",
+      "phone": "+2348012345678",
+      "location": "Lagos, Nigeria"
+    },
+    "experience": [
+      {
+        "company": "Flutterwave",
+        "title": "Site Reliability Engineer",
+        "start_date": "2022-02-01",
+        "end_date": null,
+        "is_current": true
+      }
+    ],
+    "education": [
+      {
+        "institution": "University of Lagos",
+        "degree": "B.Sc Computer Science",
+        "end_date": "2021-07-01"
+      }
+    ],
+    "skills": [
+      "Kubernetes",
+      "Terraform",
+      "Prometheus",
+      "Go",
+      "Linux",
+      "Ansible"
+    ]
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "id": "0006",
+  "name": "employment-gap",
+  "layout": "single_column",
+  "tests": "Two-year gap between roles; must be recorded, not explained away.",
+  "expect_conflict": false,
+  "must_not_extract": [],
+  "truth": {
+    "personal_info": {
+      "full_name": "Sarah Whitfield",
+      "email": "s.whitfield@example.co.uk",
+      "phone": "+447700900123",
+      "location": "Manchester, United Kingdom"
+    },
+    "experience": [
+      {
+        "company": "Monzo",
+        "title": "Backend Engineer",
+        "start_date": "2023-06-01",
+        "end_date": null,
+        "is_current": true
+      },
+      {
+        "company": "Sky",
+        "title": "Software Engineer",
+        "start_date": "2018-09-01",
+        "end_date": "2021-05-01",
+        "is_current": false
+      }
+    ],
+    "education": [
+      {
+        "institution": "University of Leeds",
+        "degree": "BSc Computer Science",
+        "end_date": "2018-07-01"
+      }
+    ],
+    "skills": [
+      "Java",
+      "Spring",
+      "Kotlin",
+      "gRPC"
+    ]
+  }
+}

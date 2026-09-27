@@ -1,0 +1,38 @@
+{
+  "id": "0001",
+  "name": "plain-baseline",
+  "layout": "single_column",
+  "tests": "Nothing unusual. A control.",
+  "expect_conflict": false,
+  "must_not_extract": [],
+  "truth": {
+    "personal_info": {
+      "full_name": "Aditi Rao",
+      "email": "aditi.rao@example.com",
+      "phone": "+919811122334",
+      "location": "Pune, India"
+    },
+    "experience": [
+      {
+        "company": "Zensar Technologies",
+        "title": "Backend Engineer",
+        "start_date": "2021-07-01",
+        "end_date": null,
+        "is_current": true
+      }
+    ],
+    "education": [
+      {
+        "institution": "Savitribai Phule Pune University",
+        "degree": "B.E. Computer Engineering",
+        "end_date": "2021-05-01"
+      }
+    ],
+    "skills": [
+      "Python",
+      "Django",
+      "PostgreSQL",
+      "Docker"
+    ]
+  }
+}

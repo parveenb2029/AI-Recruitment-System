@@ -216,7 +216,7 @@ artifact. Summary:
 | 3.4 | Persist (Postgres, append-only audit) | **done** |
 | 3.5 | Review console | **done** |
 | 3.6 | Matching (WF-04) | **done** — vertical slice complete |
-| 4.1 | Golden set | **deferred — see register** |
+| 4.1 | Golden set + accuracy harness | **done** — 8 documents, self-tested scorer; real-model figure is the operator's run |
 | 4.2 | Bias harness | **done** |
 | 4.3 | Confidence calibration | not started (blocked on 4.1) |
 | 5.1 | Auth, RBAC, compliance pack | **done** |
@@ -249,7 +249,7 @@ lands. Do not assume anything here exists.
 | Cloud storage / ATS adapters | Phase 2 | Only `local` and `csv`/`none` are implemented. Others raise `NotImplementedError` with a clear message rather than failing obscurely. | Phase 5.2+ |
 | OIDC single sign-on | Phase 5.1 | `local` (scrypt passwords, server-side sessions) and `single_user` are implemented. `oidc` **raises rather than falling back** — an org that configures SSO and silently gets weaker auth has an incident, not a warning. | When a customer needs it |
 | Candidate-facing portal | Phase 5.1 | `appeal_process.md` and `candidate_disclosure.md` describe a process with no UI behind it. Today it is manual on the operator's side, and the docs say so. | Not scoped |
-| **Golden set (prompt 10)** | Phase 4.1 | **Deliberately deferred at the operator's request.** Needs 50–100 real resumes with human-labelled ground truth — that is the operator's evening, not a coding session. Everything in 4.3 is blocked on it, and no accuracy number can be quoted until it exists. | Next available |
+| ~~**Golden set (prompt 10)**~~ | Phase 4.1 | **Deliberately deferred at the operator's request.** Needs 50–100 real resumes with human-labelled ground truth — that is the operator's evening, not a coding session. Everything in 4.3 is blocked on it, and no accuracy number can be quoted until it exists. | Next available |
 | Confidence calibration | Phase 2 | `confidence.calibrated: false` in config. Thresholds are round numbers, not measurements. Blocked on the golden set. | Phase 4.3 |
 | ~~**Plain-language console copy**~~ | Phase 3.5 / 5.1 | **Closed 2026-08-23.** `web/humanize.py` plus rewritten templates; the technical values are hidden behind a toggle, not removed, and `tests/test_humanize.py` fails if either half regresses. Original entry kept below for the reasoning. |
 | ~~Plain-language console copy (original entry)~~ | Phase 3.5 / 5.1 | **The console is written for engineers and its users are not.** The audit page column heads are `Run`, `Prompt`, `Model`; the rows carry `workflow_run_id`, `prompt_version`, `model_id`, event names like `auth.login_failed`, and a raw Python dict in `detail`. Reviewers will be recruiters and hiring managers — the operator puts it at 99% non-technical. Needs: human sentences per event ("Parveen signed in" / "Sign-in failed — wrong password"), plain column heads, `detail` rendered as fields rather than a dict, and the same pass over the queue, detail, login and error screens. The jargon must survive *somewhere* — LL144 and GDPR Art. 22 evidence depends on run and model identity — so this is a presentation layer over the existing columns, not a schema change: keep the technical values behind a "Show technical details" toggle or an export. | Next available |
@@ -257,7 +257,7 @@ lands. Do not assume anything here exists.
 | ~~**`OllamaLLM` never run against a real Ollama**~~ | 5.4 | **Closed 2026-09-14.** The operator installed Ollama, pulled a 3B model and ran a real extraction: correct name, email, two roles and nine skills out of an actual PDF, with no API key. It immediately found a defect no test could — the digest lookup asked `/api/show`, which carries no digest at all; it lives in `/api/tags`. Right by the documentation, wrong against the daemon. | — |
 | Refused account changes are not logged | 5.3 | Blocking a lockout raises before anything is written, so an attempt to switch off the last administrator leaves no trace. Successful changes are recorded; refused ones are not, and repeated attempts are the more interesting signal of the two. Small to add — the guard already holds a session — and deliberately not bundled into a change that was already wide. | Next available |
 | **DPIA for the operator's own instance** | Phase 6 | Not project debt — see the compliance section above. A self-hoster owes their own; the demo has no personal data to assess. This row exists for the one case that *is* the operator's: the day 6.1 points intake at a real inbox and a stranger's application arrives, the operator becomes a controller of real applicants' data and owes a performed DPIA, not a template. Filling in `docs/compliance/dpia.md` is the deliverable, and it needs facts (lawful basis, retention, who the DPO is) rather than code. | Before 6.1 processes a real application |
-| **Project walkthrough guide — owed to the operator** | asked 2026-09-13 | Not technical debt; a promised deliverable. A plain-language tour of the whole repository for someone who is not an engineer: what every folder holds, what decision was made at each step, why it was made, what the alternative was, and why the architecture ended up this shape. The raw material already exists in this file's decision log — but that log is written for a coding session, not for a reader, and it is 700 lines. Written **after** the build is ready, not during, so it describes what shipped rather than what was planned. | After Phase 7 |
+| ~~**Project walkthrough guide**~~ | asked 2026-09-13 | **Closed 2026-09-14.** `docs/walkthrough.md` plus a 24-page Word edition: every folder, the eleven decisions with the alternative each rejected, what is still not true, and a section of interview answers. Written after the build settled rather than during, so it describes what shipped. | — |
 | Doc de-duplication | — | Sibling docs still 84–92% identical. Not on the critical path to shipping. | Optional cleanup |
 
 **Rule:** when a phase cannot deliver something it promised, add a row here in the
@@ -1282,3 +1282,63 @@ Append here. Newest last.
   **Still owed from this sitting:** the operator's "I want some visuals, this
   is too drab" — the sign-in and demo screens are all type and no picture. Not
   started; it is a design pass, not a defect.
+
+- **2026-09-15** — Phase 4.1. The golden set exists, and the project can finally
+  measure itself.
+  **The constraint that shaped it: the set is synthetic, and that is stated
+  everywhere a number appears.** Hard rule 5 forbids real candidate data and
+  the operator does not want other people's CVs, so the eight documents are
+  constructed from cases a person wrote. A figure from this set describes how
+  the system handles *these eight documents*. It does not describe the
+  distribution of real resumes, because no real resume is involved. That
+  sentence is printed by the CLI, embedded in the JSON report, and now sits in
+  the README — an accuracy figure that travels without it will be read as
+  something it is not.
+  **One source, two outputs.** `tools/build_golden.py` renders each YAML case
+  into a PDF *and* into the answer key, in the same run. A measurement set whose
+  document and answer key are maintained separately drifts within a month, and a
+  drifted key does not fail loudly — it quietly scores correct extractions as
+  wrong, and every number after that is noise.
+  **PDFs, not text files**, because half of what this measures is layout, and it
+  works: the two-column case puts skills and education *before* experience when
+  flattened, and the table case extracts as `Kubernetes Terraform Prometheus`
+  with no separator between cells — precisely the shape that makes a model read
+  a row as one skill. Handing the extractor clean text would have measured a
+  problem nobody has and reported a much higher number than the truth.
+  The documents were 250 characters at first, which is a skeleton rather than a
+  CV, and would have inflated the figure. They now carry a profile paragraph and
+  responsibility lines — **built only from facts the case already states**,
+  because a document containing claims the answer key does not know about would
+  score correct extractions as hallucinations.
+  **Comparison rules differ per field, deliberately.** Email exact, because
+  `rahl.sharma@email.com` is ~95% similar to the real address and reaches
+  nobody; phone by digits, because `+44 7700 900123` is the same number as
+  `+447700900123`; names, employers and places loosely; **dates exactly, in ISO**
+  — the document says "Apr 2021 - Mar 2023" and converting it is the job.
+  Roles are paired by employer rather than by position, so listing jobs
+  oldest-first is not punished as an error.
+  **The harness is under test, and its own tests found a defect in it.**
+  `loose()` replaced punctuation with a space, so "B.Sc" became `b sc` while
+  "BSc" stayed `bsc` — two spellings of one degree compared as different, and a
+  correct extraction would have been scored as an error. It now strips to
+  letters and digits. There are tests in both directions: spellings a person
+  would call identical must match, and things that are genuinely different must
+  not, because a normaliser generous enough to match anything reports perfect
+  accuracy on every run.
+  Every degraded case in `tests/test_golden.py` is something a real model has
+  actually done to this project — a dropped character in an email, a date
+  converted wrongly, a flattened table row read as one skill — and the harness
+  is *required* to catch each one. Same rule as the bias harness.
+  Protected characteristics are searched for across the **whole** extracted
+  profile rather than the fields we expect them in, because a date of birth
+  smuggled into a summary is still a date of birth. A leak makes the command
+  exit non-zero: it is a defect, not a low score.
+  Run against `FakeLLM` the set scores **12.0%**, which is the correct answer —
+  the fake returns one fixed person for all eight documents, so the run proves
+  the harness detects wrong answers and measures nothing else. **The real figure
+  needs a real model and is the operator's run**, the same way the first real
+  extraction and the first Docker build were.
+  377 tests pass; ruff clean; branding gate green.
+  **Still open after this:** 4.3 (calibration) is now unblocked but not started,
+  and the README's "no accuracy figure" sentences have been replaced with an
+  accurate description of what exists rather than a number nobody has produced.

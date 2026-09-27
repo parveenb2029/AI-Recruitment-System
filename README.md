@@ -33,7 +33,7 @@ checkbox away, not thrown out.*
 
 It started as 136 files of documentation with zero runnable code — a
 specification for a system nobody had built. It is now a working product with
-**216 passing tests**, and the parts that were genuinely hard:
+**377 passing tests**, and the parts that were genuinely hard:
 
 - **A model that cannot return a fit score.** Not "is instructed not to" — the
   score fields are stripped from the tool schema before the call, so returning
@@ -83,9 +83,13 @@ and pushing back when the first answer was wrong. `CLAUDE.md` records all of it,
 dated, including the decisions that had to be reversed. It is the most useful
 file in the repository.
 
-**Nothing here has been independently verified.** No accuracy figure has been
-measured, no DPIA has been performed, and the bias harness is one you run on
-yourself rather than an audit. The section below on using it with real
+**Nothing here has been independently verified.** No DPIA has been performed,
+and the bias harness is one you run on yourself rather than an audit. There is
+now an accuracy harness (`python -m recruit.golden`) with eight constructed
+documents behind it — but the set is synthetic, so a figure from it describes
+how the system handles those eight documents and not the distribution of real
+resumes. The harness prints that sentence with every result, and so does this
+README. The section below on using it with real
 candidates says exactly what is missing. Please do not put this in front of real
 applicants without reading it.
 
@@ -454,6 +458,8 @@ prompt for a human to look, not a measurement to act on.
 | `python -m recruit.match` | Score a candidate against a requisition. |
 | `python -m recruit.users` | Add, list, deactivate people; set passwords and roles. |
 | `python -m recruit.bias_audit` | Run the bias harness. `--self-test` proves it can still detect bias. |
+| `python -m recruit.golden` | Measure extraction accuracy against the golden set. `--provider ollama --model <name>` for a real figure. |
+| `python tools/build_golden.py` | Rebuild the golden documents and answer keys from `golden/cases/`. Needs LibreOffice. |
 | `python -m recruit.db_init` | Schema only. `--drop` destroys everything. |
 | `python tools/check_branding.py` | Fail if any organization value is hardcoded outside `config/`. |
 | `python tools/validate_output.py <f>` | Validate a result against its JSON Schema. |
