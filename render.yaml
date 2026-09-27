@@ -1,20 +1,42 @@
 # One-click deploy: your own copy, on your own server, with your own accounts.
 #
 # Render reads this file when you click "Deploy to Render" in the README, or
-# when you point a new Blueprint at your fork. It creates two things: a Postgres
-# database and a web service running this repository's Dockerfile, wired
-# together. Nothing is shared with anyone else's copy — the database is yours,
-# the candidates in it are yours, and nobody but the accounts you create can
-# sign in.
+# when you point a new Blueprint at your fork. It creates one web service
+# running this repository's Dockerfile. Nothing is shared with anyone else's
+# copy — the database is yours, the candidates in it are yours, and nobody but
+# the accounts you create can sign in.
 #
 # WHAT IT WILL ASK YOU FOR
 #
+#   Database URL          A Postgres connection string. See below — it takes
+#                         about two minutes to get a free one.
 #   Administrator email   The first account. You sign in as this.
 #   Anthropic API key     Optional. Leave it blank to try the system with the
 #                         fake model on the sample resumes; add it later, in the
 #                         dashboard, when you want to process a real one.
 #
-# The administrator PASSWORD is not asked for and is not set here — you choose
+# WHY THIS FILE DOES NOT CREATE A DATABASE FOR YOU
+#
+# It used to, and that was wrong in two ways that only show up later.
+#
+#   1. **Render's free Postgres deletes itself 30 days after creation.** For a
+#      demo whose whole job is to be running when somebody clicks a link on a
+#      CV, that is a failure with a timer on it — and it fires at precisely the
+#      moment nobody is watching.
+#   2. Render allows **one** free database per account. If you already have
+#      one, this blueprint simply fails, and the web service is cancelled with
+#      it.
+#
+# So the connection string is asked for instead. Get a free one at neon.com:
+# no card, no expiry, and it sleeps to zero when idle rather than being
+# deleted. Create a project, copy the connection string, paste it here.
+#
+# Any Postgres works. The scheme Neon hands you needs no editing —
+# `db.session.normalise_url` rewrites `postgres://` and bare `postgresql://`
+# for the psycopg 3 driver this image ships, because every managed platform
+# emits one of those and none of them match out of the box.
+#
+# THE ADMINISTRATOR PASSWORD is not asked for and is not set here — you choose
 # it in the browser on your first visit.
 #
 #   1. When the deploy finishes, open your service's URL with /setup on the end
@@ -35,29 +57,17 @@
 #
 # WHAT IT COSTS
 #
-# The free plans are enough to try it, with one trap worth knowing before you
-# click: Render's FREE POSTGRES DELETES ITSELF 30 DAYS after creation. Free web
-# services also sleep when idle, so the first request after a quiet spell is
-# slow — that part is only an annoyance.
+# Nothing, on the free plans. Free web services sleep after about fifteen
+# minutes idle, so the first request after a quiet spell takes a minute to
+# wake. That is an annoyance rather than a trap.
 #
-# If you want this copy to still hold its data in three months, put the database
-# somewhere without a timer. The README's "Free plans, and the trap in them"
-# section walks through pointing DATABASE_URL at a free Neon database instead;
-# the scheme it gives you works here unchanged.
-#
-# For anything with real work in it, change `plan: free` to `starter` on both.
+# For anything with real work in it, change `plan: free` to `starter`.
 #
 # BEFORE YOU PUT REAL CANDIDATES IN IT
 #
 # Read the "Before you use this on real candidates" section of the README. In
-# short: no accuracy figure has been measured, no DPIA has been performed, and
-# the bias harness is not an independent LL144 audit.
-
-databases:
-  - name: recruit-db
-    databaseName: recruit
-    user: recruit
-    plan: free
+# short: the accuracy figure comes from a synthetic set, no DPIA has been
+# performed, and the bias harness is not an independent LL144 audit.
 
 services:
   - type: web
@@ -67,14 +77,11 @@ services:
     plan: free
     healthCheckPath: /health
     envVars:
-      # Wired automatically from the database above — you never see or paste
-      # it. Render hands out a bare `postgresql://` URL, which SQLAlchemy reads
-      # as "use psycopg2"; this image ships psycopg 3, so `db.session`
-      # normalises the scheme rather than making you edit a generated URL.
+      # Asked for at creation, never written down. A connection string carries
+      # a password, and this repository is public — a `value:` here would
+      # publish the credentials to your own database.
       - key: DATABASE_URL
-        fromDatabase:
-          name: recruit-db
-          property: connectionString
+        sync: false
 
       # This is the setting that makes a hosted copy safe. The shipped config
       # file says `single_user`, which means no sign-in screen at all — correct

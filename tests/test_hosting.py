@@ -208,6 +208,24 @@ def test_the_render_blueprint_turns_authentication_on():
     assert token.get("generateValue") is True
     assert "value" not in token
 
+    # The database is ASKED FOR, not provisioned. Two reasons, both learned by
+    # submitting this blueprint to Render and watching it fail:
+    #
+    #   1. Render's free Postgres deletes itself 30 days after creation, which
+    #      for a demo linked from a CV is a failure with a timer on it.
+    #   2. Render allows one free database per account, so a blueprint that
+    #      creates one fails outright for anybody who already has one — and
+    #      takes the web service down with it.
+    #
+    # A connection string also carries a password, and this repository is
+    # public, so a literal value here would publish the credentials.
+    assert "databases" not in blueprint, (
+        "provisioning a database here reintroduces the 30-day timer and the "
+        "one-free-database limit"
+    )
+    assert env["DATABASE_URL"]["sync"] is False
+    assert "value" not in env["DATABASE_URL"]
+
 
 def test_the_app_module_refuses_to_import_when_it_would_serve_openly(monkeypatch):
     """The guard has to be on the path uvicorn actually takes.
