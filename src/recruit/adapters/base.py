@@ -62,7 +62,7 @@ class LLMAdapter(Protocol):
 
         Implementations MUST use the provider's native structured-output or
         tool-calling mode. Asking for JSON in prose is a project-level rule
-        violation (see CLAUDE.md, Hard rules).
+        violation (see DECISIONS.md, Hard rules).
         """
         ...
 

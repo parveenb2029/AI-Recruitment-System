@@ -23,7 +23,7 @@ docs — identical SLAs across workflows, shared pain-point tables, an empty
 When you hit something in the documentation that looks oddly generic or
 contradicts a neighbouring file, the template that produced it is in here. That
 makes this directory useful as a reference while the docs are being
-de-duplicated (see `CLAUDE.md`, the optional documentation cleanup phase).
+de-duplicated (see `DECISIONS.md`, the optional documentation cleanup phase).
 
 Once that cleanup is finished, this directory can be deleted — the git history
 will still hold it.

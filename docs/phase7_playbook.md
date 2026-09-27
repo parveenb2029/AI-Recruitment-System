@@ -54,14 +54,14 @@ merely absent.
 
 ## 7.0 — Write the decision down before writing code
 
-Amend `CLAUDE.md`: the scope section, a Phase 7 row in the roadmap, and a
+Amend `DECISIONS.md`: the scope section, a Phase 7 row in the roadmap, and a
 decision-log entry recording the tenancy model, why row-level rather than
 database-per-tenant, and why demo mode rather than real data.
 
 Add a **hard rule 11**: *no query for candidate data may be written without a
 workspace; the repository must make it impossible rather than discouraged.*
 
-**DONE WHEN:** `CLAUDE.md` carries the rule, and a session reading it would know
+**DONE WHEN:** `DECISIONS.md` carries the rule, and a session reading it would know
 why demo mode exists without being told again.
 
 ---

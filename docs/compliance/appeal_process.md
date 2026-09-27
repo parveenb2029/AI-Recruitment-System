@@ -98,4 +98,4 @@ the pipeline is wrong more often, not that candidates are complaining more.
 There is **no candidate-facing interface** in the system today. This document
 describes a process that is currently manual on your side. Building the
 candidate portal is not in the current scope; see the deferred register in
-`CLAUDE.md`.
+`DECISIONS.md`.

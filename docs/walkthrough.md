@@ -101,7 +101,7 @@ Knowing which layer you are looking at explains a lot.
 | File | What it is |
 |---|---|
 | `README.md` | The front door. What it does, what it does not do, how to run it in ten minutes. |
-| `CLAUDE.md` | **The project's memory.** Scope, rules, roadmap, and a long decision log. Read at the start of every working session so that decisions are made once, not re-argued. This guide you are reading is that file translated for humans. |
+| `DECISIONS.md` | **The project's memory.** Scope, rules, roadmap, and a long decision log. Read at the start of every working session so that decisions are made once, not re-argued. This guide you are reading is that file translated for humans. |
 | `CHANGELOG.md` | What changed, per release. |
 | `LICENSE` | MIT. Anyone may use it, including commercially, provided the copyright notice stays. |
 | `pyproject.toml` | The parts list. Every external library the project needs, declared. |
@@ -139,7 +139,7 @@ vision.
 **Honest note:** these documents were template-expanded and are 84–92% identical
 to each other. They all share one cross-references table, so each one claims to
 be used by every other one, which cannot be true. That is written down in
-`CLAUDE.md` as a known defect rather than quietly fixed, because pretending the
+`DECISIONS.md` as a known defect rather than quietly fixed, because pretending the
 inherited documentation is better than it is would be the first dishonest thing
 in the repository.
 
@@ -806,7 +806,7 @@ down as blocking rather than skipped.
 **One prompt, one commit.** Each unit of work has a stated goal and an acceptance
 command that must be run, with real output pasted, before it counts as done.
 
-**Decisions are recorded in the session that makes them**, in `CLAUDE.md`, which
+**Decisions are recorded in the session that makes them**, in `DECISIONS.md`, which
 is read at the start of every session. That file is now about 700 lines of
 decision log. It is why the same argument never happens twice, and why this guide
 could be written at all.

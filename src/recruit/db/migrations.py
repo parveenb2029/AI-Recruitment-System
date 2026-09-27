@@ -1,6 +1,6 @@
 """Schema creation and the append-only enforcement trigger.
 
-Alembic is the pinned tool for versioned migrations (see CLAUDE.md). This module
+Alembic is the pinned tool for versioned migrations (see DECISIONS.md). This module
 holds the bootstrap and the one piece of DDL that cannot be expressed in the ORM:
 a database-level guarantee that nobody rewrites history.
 """

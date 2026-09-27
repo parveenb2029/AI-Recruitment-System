@@ -211,5 +211,5 @@ class OIDCAuth:
             "OIDC single sign-on is not implemented yet.\n"
             "  Available now: adapters.auth.provider = 'local' (username/password)\n"
             "  or 'single_user' for development.\n"
-            "  Tracked in CLAUDE.md under Deferred work."
+            "  Tracked in DECISIONS.md under Deferred work."
         )

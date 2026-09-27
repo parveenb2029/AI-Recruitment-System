@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Git repository initialized. Prior to this commit the project had no version
   control and no recovery path.
 - `LICENSE` (MIT), `.gitignore`, `CHANGELOG.md`.
-- `CLAUDE.md` — project context for AI coding sessions: target state, scope
+- `DECISIONS.md` — project context for AI coding sessions: target state, scope
   decision, pinned stack, hard rules, known documentation defects, and the
   decision log.
 
@@ -132,7 +132,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Notes
 - The project began as a documentation blueprint with no application code.
   As of Phase 3.2 it has a working ingest → extract pipeline and 29 passing tests.
-  See `CLAUDE.md` for the roadmap and the deferred-work register.
+  See `DECISIONS.md` for the roadmap and the deferred-work register.
 - Scope for v1 fixed to WF-03 (extraction), WF-04 (matching), and the review
   console. The remaining six workflows stay documented and unbuilt.
 

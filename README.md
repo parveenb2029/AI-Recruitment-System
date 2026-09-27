@@ -79,7 +79,7 @@ six of the eight specified workflows to protect a shippable core, refusing an
 architecture that would have produced an indefensible single fit score, insisting
 that nothing counted as finished until it had been run on a machine without the
 dependencies already installed — a rule that caught two real packaging defects —
-and pushing back when the first answer was wrong. `CLAUDE.md` records all of it,
+and pushing back when the first answer was wrong. `DECISIONS.md` records all of it,
 dated, including the decisions that had to be reversed. It is the most useful
 file in the repository.
 
@@ -442,7 +442,7 @@ And one measurement that does not exist yet: **no accuracy figure has been
 established.** The confidence thresholds in the config are round numbers, not
 calibrated ones — `confidence.calibrated: false` says so in the file. That needs
 a golden set of human-labelled resumes, which is a deliberate, tracked gap (see
-`CLAUDE.md`). Until it exists, treat every number the system reports as a
+`DECISIONS.md`). Until it exists, treat every number the system reports as a
 prompt for a human to look, not a measurement to act on.
 
 ---
@@ -510,7 +510,7 @@ CI runs the suite on Python 3.11 and 3.12, the branding check, schema validation
 of the sample outputs, the bias harness self-test, and a full Docker build that
 asserts the OCR binaries are really in the image.
 
-`CLAUDE.md` is the project's memory: scope decisions, the hard rules, a register
+`DECISIONS.md` is the project's memory: scope decisions, the hard rules, a register
 of work that was deferred and why, and a dated decision log. Read it before
 changing anything — several of its rules exist because the alternative was tried
 and broke something.
@@ -526,7 +526,7 @@ Otherwise, the parts worth your time, roughly in order:
 
 | Where | Why it is interesting |
 |-------|----------------------|
-| `CLAUDE.md` decision log | Every non-obvious decision, with the reasoning and the defects that forced it. Including the ones that were wrong first. |
+| `DECISIONS.md` decision log | Every non-obvious decision, with the reasoning and the defects that forced it. Including the ones that were wrong first. |
 | `src/recruit/firstrun.py` | Who may claim the first account, and why the rule differs between a laptop and a public URL. Closed setup, unconfigured setup and a wrong token all answer 404 — a 403 would confirm the instance exists. |
 | `src/recruit/validate.py` | VR-03 — every quoted detail is fuzzy-matched back against the source document. The primary defence against a model inventing an employer. |
 | `src/recruit/match.py` | `model_facing_schema()` strips the score fields before the call, so the model is *structurally incapable* of returning an overall fit score. A future prompt edit cannot reintroduce one. |

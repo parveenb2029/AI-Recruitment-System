@@ -57,7 +57,7 @@ class Document:
     ocr_used: bool = False
     # Validation.md §2 requires a virus scan. No scanner is wired up yet, so this
     # records the truth rather than implying a check that did not happen.
-    # See CLAUDE.md, Deferred work.
+    # See DECISIONS.md, Deferred work.
     virus_scanned: bool = False
     warnings: list[str] = field(default_factory=list)
 

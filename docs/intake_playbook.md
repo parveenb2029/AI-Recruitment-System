@@ -56,7 +56,7 @@ plan, and how the job was posted. You have to look at a real one. That is prompt
 
 ### 6.0 — Amend the scope decision on purpose
 
-`CLAUDE.md` says in writing that intake (WF-02) is cut from v1 and that any
+`DECISIONS.md` says in writing that intake (WF-02) is cut from v1 and that any
 session drifting into it should stop and flag it. This whole phase is that
 drift. That is allowed — you own the scope — but it gets recorded as a decision
 with a date and a reason, not absorbed quietly.

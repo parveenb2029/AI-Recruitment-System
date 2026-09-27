@@ -48,7 +48,7 @@ service-account*.json
 
 # ---- Runtime data ----
 # The numbered folders 01-08 are DOCUMENTATION only. Runtime artifacts belong in
-# Postgres + object storage, never committed. See CLAUDE.md.
+# Postgres + object storage, never committed. See DECISIONS.md.
 data/
 uploads/
 artifacts/
@@ -103,4 +103,4 @@ npm-debug.log*
 # Screenshots and working files land here when they are sent to this machine.
 # They are correspondence about the project, not part of it, and a public
 # repository is the wrong place for whatever happened to be on screen.
-Claude outputs/
+scratch/

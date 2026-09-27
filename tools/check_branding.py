@@ -30,7 +30,7 @@ SKIP_PATHS = {
     "generate.py",
     "_create_docx_samples.py",
     "CHANGELOG.md",
-    "CLAUDE.md",
+    "DECISIONS.md",
     "LICENSE",
 }
 
